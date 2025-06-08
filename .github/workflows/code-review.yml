@@ -52,5 +52,14 @@ jobs:
 
       - name: 🔬 Reviewing a pull request
         run: expotools code-review --pr ${{ github.event.inputs.pullNumber || github.event.number }}
-        env:
+        env: නම:OpenStatus Synthetics CI
+  # ඔබට නිශ්චිත කැපවීමට හෝ අනුවාදයට ඇමිණිය හැකිය.
+  # භාවිත: openstatusHQ/openstatus-github-action@adb7e3ec5e8918d11b7e73ffa74a873ce62b5f75
+  භාවිත: openstatusHQ/openstatus-github-action@v1
+  සමඟ:
+    # OpenStatus API යතුර
+    api_යතුර:
+    # OpenStatus වින්‍යාස ගොනුවට යන මාර්ගය
+    config_path: # විකල්ප
+          
           GITHUB_TOKEN: ${{ secrets.EXPO_BOT_GITHUB_TOKEN }}
