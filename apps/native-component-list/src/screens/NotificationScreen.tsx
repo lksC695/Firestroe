@@ -5,7 +5,7 @@ import { getAllScheduledNotificationsAsync } from 'expo-notifications';
 import React from 'react';
 import { Alert, Text, ScrollView, View, Platform } from 'react-native';
 
-import registerForPushNotificationsAsync from '../api/registerForPushNotificationsAsync';
+import { sendPushNotificationsAsync } from '../api/sendPushNotificationsAsync';
 import HeadingText from '../components/HeadingText';
 import ListButton from '../components/ListButton';
 import MonoText from '../components/MonoText';
@@ -13,6 +13,8 @@ import MonoText from '../components/MonoText';
 const BACKGROUND_TEST_INFO = `[notification-tester app only]: To test background notification handling:\n(1) Background the app.\n(2) Send a push notification from your terminal. The push token can be found in your logs, and the command to send a notification can be found at https://docs.expo.dev/push-notifications/sending-notifications/#http2-api. On iOS, you need to include "_contentAvailable": "true" in your payload.\n(3) After receiving the notification, check the "persisted data" presented in the notification-tester app`;
 
 const remotePushSupported = Device.isDevice;
+
+const welcomeCategoryId = 'welcome';
 
 export default class NotificationScreen extends React.Component<
   void,
@@ -36,8 +38,8 @@ export default class NotificationScreen extends React.Component<
     if (Platform.OS !== 'ios' && Platform.OS !== 'android') {
       return;
     }
-    // Using the same category as in `registerForPushNotificationsAsync`
-    Notifications.setNotificationCategoryAsync('welcome', [
+    // Using the same category as in `sendPushNotificationsAsync`
+    Notifications.setNotificationCategoryAsync(welcomeCategoryId, [
       {
         buttonTitle: `Don't open app`,
         identifier: 'first-button',
@@ -51,6 +53,9 @@ export default class NotificationScreen extends React.Component<
         textInput: {
           submitButtonTitle: 'Submit button',
           placeholder: 'Placeholder text',
+        },
+        options: {
+          opensAppToForeground: false,
         },
       },
       {
@@ -107,7 +112,7 @@ export default class NotificationScreen extends React.Component<
             });
             await Notifications.scheduleNotificationAsync({
               content: {
-                categoryIdentifier: 'welcome',
+                categoryIdentifier: welcomeCategoryId,
                 title: 'Here is a notification!',
                 body: 'This one has buttons!',
                 autoDismiss: true,
@@ -229,7 +234,7 @@ export default class NotificationScreen extends React.Component<
   _handleNotificationResponseReceived = (
     notificationResponse: Notifications.NotificationResponse
   ) => {
-    console.log({ notificationResponse });
+    console.log('NCL', { notificationResponse });
 
     // Calling alert(message) immediately fails to show the alert on Android
     // if after backgrounding the app and then clicking on a notification
@@ -359,10 +364,13 @@ export default class NotificationScreen extends React.Component<
   };
 
   _incrementIconBadgeNumberAsync = async () => {
-    const currentNumber = await Notifications.getBadgeCountAsync();
-    await Notifications.setBadgeCountAsync(currentNumber + 1);
+    const previousNumber = await Notifications.getBadgeCountAsync();
+    const didIncrement = await Notifications.setBadgeCountAsync(previousNumber + 1);
     const actualNumber = await Notifications.getBadgeCountAsync();
-    Alert.alert(`Set the badge number to ${actualNumber}`);
+    const message = didIncrement
+      ? `Incremented from ${previousNumber} to ${actualNumber} (expected: ${previousNumber + 1}).`
+      : "You don't have notification permissions.";
+    Alert.alert(message);
   };
 
   _clearIconBadgeAsync = async () => {
@@ -373,7 +381,9 @@ export default class NotificationScreen extends React.Component<
   _sendNotificationAsync = async () => {
     const permission = await this._obtainRemoteNotifPermissionsAsync();
     if (permission.status === 'granted') {
-      registerForPushNotificationsAsync();
+      sendPushNotificationsAsync({
+        categoryId: 'welcome',
+      }).catch(console.error);
     }
   };
 

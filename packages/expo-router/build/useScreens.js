@@ -1,5 +1,38 @@
 "use strict";
 'use client';
+var __createBinding = (this && this.__createBinding) || (Object.create ? (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    var desc = Object.getOwnPropertyDescriptor(m, k);
+    if (!desc || ("get" in desc ? !m.__esModule : desc.writable || desc.configurable)) {
+      desc = { enumerable: true, get: function() { return m[k]; } };
+    }
+    Object.defineProperty(o, k2, desc);
+}) : (function(o, m, k, k2) {
+    if (k2 === undefined) k2 = k;
+    o[k2] = m[k];
+}));
+var __setModuleDefault = (this && this.__setModuleDefault) || (Object.create ? (function(o, v) {
+    Object.defineProperty(o, "default", { enumerable: true, value: v });
+}) : function(o, v) {
+    o["default"] = v;
+});
+var __importStar = (this && this.__importStar) || (function () {
+    var ownKeys = function(o) {
+        ownKeys = Object.getOwnPropertyNames || function (o) {
+            var ar = [];
+            for (var k in o) if (Object.prototype.hasOwnProperty.call(o, k)) ar[ar.length] = k;
+            return ar;
+        };
+        return ownKeys(o);
+    };
+    return function (mod) {
+        if (mod && mod.__esModule) return mod;
+        var result = {};
+        if (mod != null) for (var k = ownKeys(mod), i = 0; i < k.length; i++) if (k[i] !== "default") __createBinding(result, mod, k[i]);
+        __setModuleDefault(result, mod);
+        return result;
+    };
+})();
 var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
@@ -10,10 +43,15 @@ exports.screenOptionsFactory = screenOptionsFactory;
 exports.routeToScreen = routeToScreen;
 exports.getSingularId = getSingularId;
 const native_1 = require("@react-navigation/native");
-const react_1 = __importDefault(require("react"));
+const react_1 = __importStar(require("react"));
 const Route_1 = require("./Route");
+const getPathFromState_1 = require("./fork/getPathFromState");
 const storeContext_1 = require("./global-state/storeContext");
 const import_mode_1 = __importDefault(require("./import-mode"));
+const ZoomTransitionEnabler_1 = require("./link/zoom/ZoomTransitionEnabler");
+const zoom_transition_context_providers_1 = require("./link/zoom/zoom-transition-context-providers");
+const navigationEvents_1 = require("./navigationEvents");
+const navigationParams_1 = require("./navigationParams");
 const primitives_1 = require("./primitives");
 const EmptyRoute_1 = require("./views/EmptyRoute");
 const SuspenseFallback_1 = require("./views/SuspenseFallback");
@@ -79,11 +117,13 @@ function getSortedChildren(children, order = [], initialRouteName) {
 /**
  * @returns React Navigation screens sorted by the `route` property.
  */
-function useSortedScreens(order, protectedScreens) {
+function useSortedScreens(order, protectedScreens, useOnlyUserDefinedScreens = false) {
     const node = (0, Route_1.useRouteNode)();
-    const sorted = node?.children?.length
-        ? getSortedChildren(node.children, order, node.initialRouteName)
-        : [];
+    const nodeChildren = node?.children ?? [];
+    const children = useOnlyUserDefinedScreens
+        ? nodeChildren.filter((child) => order.some((userDefinedScreen) => userDefinedScreen.name === child.route))
+        : nodeChildren;
+    const sorted = children.length ? getSortedChildren(children, order, node?.initialRouteName) : [];
     return react_1.default.useMemo(() => sorted
         .filter((item) => !protectedScreens.has(item.route.route))
         .map((value) => {
@@ -155,7 +195,7 @@ function getQualifiedRouteComponent(value) {
     // Pass all other props to the component
     ...props }) {
         const stateForPath = (0, native_1.useStateForPath)();
-        const isFocused = (0, native_1.useIsFocused)();
+        const isFocused = navigation.isFocused();
         const store = (0, storeContext_1.useExpoRouterStore)();
         if (isFocused) {
             const state = navigation.getState();
@@ -163,13 +203,38 @@ function getQualifiedRouteComponent(value) {
             if (isLeaf && stateForPath)
                 store.setFocusedState(stateForPath);
         }
+        (0, react_1.useEffect)(() => navigation.addListener('focus', () => {
+            const state = navigation.getState();
+            const isLeaf = !('state' in state.routes[state.index]);
+            // Because setFocusedState caches the route info, this call will only trigger rerenders
+            // if the component itself didn’t rerender and the route info changed.
+            // Otherwise, the update from the `if` above will handle it,
+            // and this won’t cause a redundant second update.
+            if (isLeaf && stateForPath)
+                store.setFocusedState(stateForPath);
+        }), [navigation]);
+        (0, react_1.useEffect)(() => {
+            return navigation.addListener('transitionEnd', (e) => {
+                if (!e?.data?.closing) {
+                    // When navigating to a screen, remove the no animation param to re-enable animations
+                    // Otherwise the navigation back would also have no animation
+                    if ((0, navigationParams_1.hasParam)(route?.params, navigationParams_1.INTERNAL_EXPO_ROUTER_NO_ANIMATION_PARAM_NAME)) {
+                        navigation.replaceParams((0, navigationParams_1.removeParams)(route?.params, [navigationParams_1.INTERNAL_EXPO_ROUTER_NO_ANIMATION_PARAM_NAME]));
+                    }
+                }
+            });
+        }, [navigation]);
         return (<Route_1.Route node={value} route={route}>
-        <react_1.default.Suspense fallback={<SuspenseFallback_1.SuspenseFallback route={value}/>}>
-          <ScreenComponent {...props} 
+        {value.type === 'route' && navigationEvents_1.unstable_navigationEvents.hasAnyListener() && (<AnalyticsListeners navigation={navigation} screenId={route.key}/>)}
+        <ZoomTransitionEnabler_1.ZoomTransitionEnabler route={route}/>
+        <zoom_transition_context_providers_1.ZoomTransitionTargetContextProvider route={route}>
+          <react_1.default.Suspense fallback={<SuspenseFallback_1.SuspenseFallback route={value}/>}>
+            <ScreenComponent {...props} 
         // Expose the template segment path, e.g. `(home)`, `[foo]`, `index`
         // the intention is to make it possible to deduce shared routes.
         segment={value.route}/>
-        </react_1.default.Suspense>
+          </react_1.default.Suspense>
+        </zoom_transition_context_providers_1.ZoomTransitionTargetContextProvider>
       </Route_1.Route>);
     }
     if (__DEV__) {
@@ -177,6 +242,53 @@ function getQualifiedRouteComponent(value) {
     }
     qualifiedStore.set(value, BaseRoute);
     return BaseRoute;
+}
+function AnalyticsListeners({ navigation, screenId, }) {
+    const stateForPath = (0, native_1.useStateForPath)();
+    const isFirstRenderRef = react_1.default.useRef(true);
+    const pathname = (0, react_1.useMemo)(() => (stateForPath ? decodeURIComponent((0, getPathFromState_1.getPathFromState)(stateForPath)) : undefined), [stateForPath]);
+    if (isFirstRenderRef.current) {
+        isFirstRenderRef.current = false;
+        if (pathname) {
+            navigationEvents_1.unstable_navigationEvents.emit('pageWillRender', {
+                pathname,
+                screenId,
+            });
+        }
+    }
+    (0, react_1.useEffect)(() => {
+        if (pathname) {
+            return () => {
+                navigationEvents_1.unstable_navigationEvents.emit('pageRemoved', {
+                    pathname,
+                    screenId,
+                });
+            };
+        }
+        return () => { };
+    }, [pathname]);
+    (0, react_1.useEffect)(() => {
+        if (pathname) {
+            const cleanFocus = navigation.addListener('focus', () => {
+                navigationEvents_1.unstable_navigationEvents.emit('pageFocused', {
+                    pathname,
+                    screenId,
+                });
+            });
+            const cleanBlur = navigation.addListener('blur', () => {
+                navigationEvents_1.unstable_navigationEvents.emit('pageBlurred', {
+                    pathname,
+                    screenId,
+                });
+            });
+            return () => {
+                cleanFocus();
+                cleanBlur();
+            };
+        }
+        return () => { };
+    }, [navigation, pathname]);
+    return null;
 }
 function screenOptionsFactory(route, options) {
     return (args) => {
@@ -189,7 +301,7 @@ function screenOptionsFactory(route, options) {
             ...dynamicResult,
         };
         // Prevent generated screens from showing up in the tab bar.
-        if (route.generated) {
+        if (route.internal) {
             output.tabBarItemStyle = { display: 'none' };
             output.tabBarButton = () => null;
             // TODO: React Navigation doesn't provide a way to prevent rendering the drawer item.

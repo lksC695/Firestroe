@@ -28,6 +28,7 @@ import androidx.media3.exoplayer.hls.HlsMediaSource
 import androidx.media3.exoplayer.smoothstreaming.SsMediaSource
 import androidx.media3.exoplayer.source.MediaSource
 import androidx.media3.exoplayer.source.ProgressiveMediaSource
+import expo.modules.audio.service.AudioControlsService
 import expo.modules.interfaces.permissions.Permissions
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.exception.Exceptions
@@ -55,6 +56,7 @@ class AudioModule : Module() {
   private var shouldRouteThroughEarpiece = false
   private var focusAcquired = false
   private var interruptionMode: InterruptionMode? = null
+  private var allowsBackgroundRecording = false
 
   private var audioFocusRequest: AudioFocusRequest? = null
   private val audioFocusChangeListener = AudioManager.OnAudioFocusChangeListener { focusChange ->
@@ -80,7 +82,10 @@ class AudioModule : Module() {
         AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
           if (interruptionMode == InterruptionMode.DUCK_OTHERS) {
             players.values.forEach { player ->
-              player.ref.volume /= 2f
+              if (player.previousVolume != player.ref.volume) {
+                player.previousVolume = player.ref.volume
+              }
+              player.ref.volume = player.previousVolume * 0.5f
             }
           } else {
             players.values.forEach { player ->
@@ -111,19 +116,19 @@ class AudioModule : Module() {
   }
 
   private fun requestAudioFocus() {
-    if (focusAcquired || !audioEnabled) {
+    if (focusAcquired || !audioEnabled || interruptionMode == InterruptionMode.MIX_WITH_OTHERS) {
       return
     }
 
     val result = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       val requestType = interruptionMode?.let {
         if (it == InterruptionMode.DO_NOT_MIX) {
-          AudioManager.AUDIOFOCUS_GAIN
+          AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
         } else {
           AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
         }
-      } ?: AudioManager.AUDIOFOCUS_GAIN
-      val audioFocusRequest = AudioFocusRequest.Builder(requestType).run {
+      } ?: AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+      audioFocusRequest = AudioFocusRequest.Builder(requestType).run {
         setAudioAttributes(
           AudioAttributes.Builder()
             .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
@@ -138,7 +143,12 @@ class AudioModule : Module() {
       }
     } else {
       @Suppress("DEPRECATION")
-      audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, AudioManager.AUDIOFOCUS_GAIN)
+      val requestType = if (interruptionMode == InterruptionMode.DO_NOT_MIX) {
+        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT
+      } else {
+        AudioManager.AUDIOFOCUS_GAIN_TRANSIENT_MAY_DUCK
+      }
+      audioManager.requestAudioFocus(audioFocusChangeListener, AudioManager.STREAM_MUSIC, requestType)
     }
 
     if (result == AudioManager.AUDIOFOCUS_REQUEST_GRANTED) {
@@ -149,6 +159,10 @@ class AudioModule : Module() {
   }
 
   private fun releaseAudioFocus() {
+    if (!focusAcquired) {
+      return
+    }
+
     if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
       audioFocusRequest?.let {
         audioManager.abandonAudioFocusRequest(it)
@@ -171,6 +185,11 @@ class AudioModule : Module() {
       staysActiveInBackground = mode.shouldPlayInBackground
       interruptionMode = mode.interruptionMode
       updatePlaySoundThroughEarpiece(mode.shouldRouteThroughEarpiece ?: false)
+      allowsBackgroundRecording = mode.allowsBackgroundRecording
+
+      recorders.values.forEach { recorder ->
+        recorder.useForegroundService = allowsBackgroundRecording
+      }
     }
 
     AsyncFunction("setIsAudioActiveAsync") { enabled: Boolean ->
@@ -215,7 +234,11 @@ class AudioModule : Module() {
 
     OnActivityEntersForeground {
       if (!staysActiveInBackground) {
-        requestAudioFocus()
+        val hasPlayersToResume = players.values.any { it.isPaused }
+        if (hasPlayersToResume) {
+          requestAudioFocus()
+        }
+
         players.values.forEach { player ->
           if (player.isPaused) {
             player.isPaused = false
@@ -245,11 +268,13 @@ class AudioModule : Module() {
         recorders.values.forEach {
           it.stopRecording()
         }
+
+        AudioControlsService.clearSession()
       }
     }
 
     Class(AudioPlayer::class) {
-      Constructor { source: AudioSource?, updateInterval: Double ->
+      Constructor { source: AudioSource?, updateInterval: Double, keepAudioSessionActive: Boolean ->
         val mediaSource = createMediaItem(source)
         runOnMain {
           val player = AudioPlayer(
@@ -258,6 +283,11 @@ class AudioModule : Module() {
             mediaSource,
             updateInterval
           )
+          player.onPlaybackStateChange = { isPlaying ->
+            if (!isPlaying && shouldReleaseFocus()) {
+              releaseAudioFocus()
+            }
+          }
           players[player.id] = player
           player
         }
@@ -306,6 +336,12 @@ class AudioModule : Module() {
       Property("playing") { player ->
         runOnMain {
           player.ref.isPlaying
+        }
+      }
+
+      Property("paused") { player ->
+        runOnMain {
+          !player.ref.isPlaying
         }
       }
 
@@ -365,10 +401,6 @@ class AudioModule : Module() {
       Function("pause") { player: AudioPlayer ->
         runOnMain {
           player.ref.pause()
-
-          if (shouldReleaseFocus()) {
-            releaseAudioFocus()
-          }
         }
       }
 
@@ -390,31 +422,44 @@ class AudioModule : Module() {
         }
       }
 
+      Function("setActiveForLockScreen") { ref: AudioPlayer, active: Boolean, metadata: Metadata?, options: AudioLockScreenOptions? ->
+        runOnMain {
+          ref.setActiveForLockScreen(active, metadata, options)
+        }
+      }
+
+      Function("updateLockScreenMetadata") { ref: AudioPlayer, metadata: Metadata ->
+        runOnMain {
+          ref.updateLockScreenMetadata(metadata)
+        }
+      }
+
+      Function("clearLockScreenControls") { ref: AudioPlayer ->
+        runOnMain {
+          ref.clearLockScreenControls()
+        }
+      }
+
       Function("setAudioSamplingEnabled") { player: AudioPlayer, enabled: Boolean ->
         runOnMain {
           player.setSamplingEnabled(enabled)
         }
       }
 
-      AsyncFunction("seekTo") { player: AudioPlayer, seekTime: Double ->
-        player.ref.seekTo((seekTime * 1000L).toLong())
+      AsyncFunction("seekTo") { player: AudioPlayer, seekTime: Double, _: Double?, _: Double? ->
+        player.seekTo(seekTime)
       }.runOnQueue(Queues.MAIN)
 
       Function("setPlaybackRate") { player: AudioPlayer, rate: Float ->
         appContext.mainQueue.launch {
-          val playbackRate = if (rate < 0) 0f else min(rate, 2.0f)
+          val playbackRate = if (rate <= 0) 0.1f else min(rate, 2.0f)
           val pitch = if (player.preservesPitch) 1f else playbackRate
           player.ref.playbackParameters = PlaybackParameters(playbackRate, pitch)
         }
       }
 
       Function("remove") { player: AudioPlayer ->
-        val wasPlaying = player.ref.isPlaying
         players.remove(player.id)
-
-        if (wasPlaying && shouldReleaseFocus()) {
-          releaseAudioFocus()
-        }
       }
     }
 
@@ -425,6 +470,7 @@ class AudioModule : Module() {
           appContext,
           options
         )
+        recorder.useForegroundService = allowsBackgroundRecording
         recorders[recorder.id] = recorder
         recorder
       }
@@ -452,10 +498,17 @@ class AudioModule : Module() {
         recorder.prepareRecording(options)
       }
 
-      Function("record") { recorder: AudioRecorder ->
+      Function("record") { recorder: AudioRecorder, options: RecordOptions? ->
         checkRecordingPermission()
         if (recorder.isPrepared) {
-          recorder.record()
+          recorder.recordWithOptions(options?.atTime, options?.forDuration)
+        }
+      }
+
+      Function("recordForDuration") { recorder: AudioRecorder, seconds: Double ->
+        checkRecordingPermission()
+        if (recorder.isPrepared) {
+          recorder.recordForDuration(seconds)
         }
       }
 
@@ -488,13 +541,23 @@ class AudioModule : Module() {
       Function("setInput") { recorder: AudioRecorder, input: String ->
         recorder.setInput(input, audioManager)
       }
+
+      Function("startRecordingAtTime") { recorder: AudioRecorder, seconds: Double ->
+        checkRecordingPermission()
+        if (recorder.isPrepared) {
+          recorder.startRecordingAtTime(seconds)
+        }
+      }
     }
   }
 
   private fun createMediaItem(source: AudioSource?): MediaSource? = source?.uri?.let { uriString ->
     val uri = uriString.toUri()
-    val mediaItem = when (uri.scheme) {
-      null -> MediaItem.fromUri(getRawResourceURI(uriString))
+    val mediaItem = when {
+      isRawResource(uri) -> {
+        val file = getResourceName(uri, uriString)
+        MediaItem.fromUri(getRawResourceURI(file))
+      }
       else -> MediaItem.fromUri(uri)
     }
 
@@ -512,6 +575,16 @@ class AudioModule : Module() {
       }
     }
   }
+
+  private fun isRawResource(uri: Uri): Boolean =
+    uri.scheme == null || (uri.scheme == "file" && uri.path?.startsWith("/android_res/raw/") == true)
+
+  private fun getResourceName(uri: Uri, fallback: String): String =
+    if (uri.scheme == null) {
+      fallback
+    } else {
+      uri.path?.substringAfterLast("/")?.substringBeforeLast(".") ?: fallback
+    }
 
   private fun getRawResourceURI(file: String): Uri {
     val resId = context.resources.getIdentifier(file, "raw", context.packageName)

@@ -76,15 +76,7 @@ export const home = [
   ]),
   makeSection('Develop', [
     makePage('develop/tools.mdx'),
-    makeGroup(
-      'Navigation',
-      [
-        makePage('develop/file-based-routing.mdx'),
-        makePage('develop/dynamic-routes.mdx'),
-        makePage('develop/next-steps.mdx'),
-      ],
-      { expanded: false }
-    ),
+    makePage('develop/app-navigation.mdx'),
     makeGroup(
       'User interface',
       [
@@ -119,7 +111,10 @@ export const home = [
         makePage('config-plugins/introduction.mdx'),
         makePage('config-plugins/plugins.mdx'),
         makePage('config-plugins/mods.mdx'),
+        makePage('config-plugins/dangerous-mods.mdx'),
+        makePage('config-plugins/development-for-libraries.mdx'),
         makePage('config-plugins/development-and-debugging.mdx'),
+        makePage('config-plugins/patch-project.mdx'),
       ],
       { expanded: false }
     ),
@@ -150,7 +145,7 @@ export const home = [
     makePage('deploy/web.mdx'),
   ]),
   makeSection('Monitor', [makePage('monitoring/services.mdx')]),
-  makeSection('More', [makePage('core-concepts.mdx'), makePage('faq.mdx')]),
+  makeSection('More', [makePage('core-concepts.mdx'), makePage('faq.mdx'), makePage('llms.mdx')]),
 ];
 
 export const general = [
@@ -184,9 +179,11 @@ export const general = [
     makeGroup(
       'Compile locally',
       [
+        makePage('guides/local-app-overview.mdx'),
         makePage('guides/local-app-development.mdx'),
         makePage('guides/local-app-production.mdx'),
         makePage('guides/cache-builds-remotely.mdx'),
+        makePage('guides/prebuilt-expo-modules.mdx'),
       ],
       {
         expanded: false,
@@ -200,6 +197,7 @@ export const general = [
         makePage('guides/dom-components.mdx'),
         makePage('guides/progressive-web-apps.mdx'),
         makePage('guides/tailwind.mdx'),
+        makePage('guides/local-https-development.mdx'),
       ],
       { expanded: false }
     ),
@@ -224,7 +222,8 @@ export const general = [
     ]),
     makeSection('Existing native apps', [
       makePage('brownfield/overview.mdx'),
-      makePage('brownfield/installing-expo-modules.mdx'),
+      makePage('brownfield/get-started.mdx'),
+      makePage('brownfield/lifecycle-listeners.mdx'),
     ]),
     makeGroup(
       'Reference',
@@ -254,11 +253,13 @@ export const general = [
     makeGroup('Navigation patterns', [
       makePage('router/advanced/stack.mdx'),
       makePage('router/advanced/tabs.mdx'),
+      makePage('router/advanced/native-tabs.mdx'),
       makePage('router/advanced/drawer.mdx'),
       makePage('router/advanced/authentication.mdx'),
       makePage('router/advanced/authentication-rewrites.mdx'),
       makePage('router/advanced/nesting-navigators.mdx'),
       makePage('router/advanced/modals.mdx'),
+      makePage('router/advanced/web-modals.mdx'),
       makePage('router/advanced/shared-routes.mdx'),
       makePage('router/advanced/protected.mdx'),
     ]),
@@ -269,14 +270,18 @@ export const general = [
       makePage('router/advanced/apple-handoff.mdx'),
       makePage('router/advanced/custom-tabs.mdx'),
     ]),
+    makeGroup('Web', [
+      makePage('router/web/api-routes.mdx'),
+      makePage('router/web/middleware.mdx'),
+      makePage('router/web/static-rendering.mdx'),
+      makePage('router/web/async-routes.mdx'),
+    ]),
     makeGroup('Reference', [
       makePage('router/error-handling.mdx'),
       makePage('router/reference/url-parameters.mdx'),
-      makePage('router/reference/redirects.mdx'),
-      makePage('router/reference/static-rendering.mdx'),
-      makePage('router/reference/async-routes.mdx'),
-      makePage('router/reference/api-routes.mdx'),
       makePage('router/reference/sitemap.mdx'),
+      makePage('router/reference/redirects.mdx'),
+      makePage('router/reference/link-preview.mdx'),
       makePage('router/reference/typed-routes.mdx'),
       makePage('router/reference/screen-tracking.mdx'),
       makePage('router/reference/src-directory.mdx'),
@@ -307,6 +312,7 @@ export const general = [
         makePage('modules/android-lifecycle-listeners.mdx'),
         makePage('modules/appdelegate-subscribers.mdx'),
         makePage('modules/autolinking.mdx'),
+        makePage('modules/shared-objects.mdx'),
         makePage('modules/module-config.mdx'),
         makePage('modules/mocking.mdx'),
         makePage('modules/design.mdx'),
@@ -330,6 +336,31 @@ export const general = [
       { expanded: false }
     ),
   ]),
+  makeSection('Integrations', [
+    makeGroup('Analytics and error reports', [
+      makePage('guides/using-analytics.mdx'),
+      makePage('guides/using-sentry.mdx'),
+      makePage('guides/using-bugsnag.mdx'),
+      makePage('guides/using-logrocket.mdx'),
+      makePage('guides/using-vexo.mdx'),
+    ]),
+    makeGroup('Authentication', [
+      makePage('guides/facebook-authentication.mdx'),
+      makePage('guides/google-authentication.mdx'),
+    ]),
+    makeGroup('CMS', [makePage('guides/using-a-cms.mdx')]),
+    makeGroup('Database and SDKs', [
+      makePage('guides/using-firebase.mdx'),
+      makePage('guides/using-supabase.mdx'),
+    ]),
+    makeGroup('Emails', [makePage('guides/using-resend.mdx')]),
+    makeGroup('Feature flags', [makePage('guides/using-feature-flags.mdx')]),
+    makeGroup('In-app purchases', [makePage('guides/in-app-purchases.mdx')]),
+    makeGroup('Push notifications', [makePage('guides/using-push-notifications-services.mdx')]),
+    makeGroup('Tools', [makePage('guides/using-eslint.mdx'), makePage('guides/typescript.mdx')]),
+    makeGroup('TV apps', [makePage('guides/building-for-tv.mdx')]),
+    makeGroup('Web apps', [makePage('guides/using-nextjs.mdx')]),
+  ]),
   makeSection(
     'More',
     [
@@ -346,23 +377,7 @@ export const general = [
         makePage('guides/store-assets.mdx'),
         makePage('guides/local-first.mdx'),
         makePage('guides/keyboard-handling.mdx'),
-      ]),
-      makeSection('Integrations', [
-        makePage('guides/using-analytics.mdx'),
-        makePage('guides/facebook-authentication.mdx'),
-        makePage('guides/using-supabase.mdx'),
-        makePage('guides/using-firebase.mdx'),
-        makePage('guides/google-authentication.mdx'),
-        makePage('guides/using-eslint.mdx'),
-        makePage('guides/using-nextjs.mdx'),
-        makePage('guides/using-logrocket.mdx'),
-        makePage('guides/using-sentry.mdx'),
-        makePage('guides/using-bugsnag.mdx'),
-        makePage('guides/using-vexo.mdx'),
-        makePage('guides/building-for-tv.mdx'),
-        makePage('guides/typescript.mdx'),
-        makePage('guides/in-app-purchases.mdx'),
-        makePage('guides/using-push-notifications-services.mdx'),
+        makePage('guides/expo-ui-swift-ui.mdx'),
       ]),
       makeSection('Troubleshooting', [
         makePage('troubleshooting/overview.mdx'),
@@ -394,14 +409,20 @@ export const eas = [
       expanded: true,
     }
   ),
+  makeSection('AI', [makePage('eas/ai/mcp.mdx')]),
   makeSection('EAS Workflows', [
     makePage('eas/workflows/get-started.mdx'),
-    makePage('eas/workflows/examples.mdx'),
     makePage('eas/workflows/pre-packaged-jobs.mdx'),
     makePage('eas/workflows/syntax.mdx'),
     makePage('eas/workflows/automating-eas-cli.mdx'),
     makePage('eas/workflows/limitations.mdx'),
-    makeGroup('Reference', [makePage('eas/workflows/reference/e2e-tests.mdx')]),
+    makeGroup('Examples', [
+      makePage('eas/workflows/examples/introduction.mdx'),
+      makePage('eas/workflows/examples/create-development-builds.mdx'),
+      makePage('eas/workflows/examples/publish-preview-update.mdx'),
+      makePage('eas/workflows/examples/deploy-to-production.mdx'),
+      makePage('eas/workflows/examples/e2e-tests.mdx'),
+    ]),
   ]),
   makeSection('EAS Build', [
     makePage('build/introduction.mdx'),
@@ -457,10 +478,17 @@ export const eas = [
         makePage('build-reference/infrastructure.mdx'),
         makePage('build-reference/app-extensions.mdx'),
         makePage('build-reference/easignore.mdx'),
+        makePage('build-reference/npx-testflight.mdx'),
         makePage('build-reference/limitations.mdx'),
       ],
       { expanded: false }
     ),
+  ]),
+  makeSection('EAS Submit', [
+    makePage('submit/introduction.mdx'),
+    makePage('submit/android.mdx'),
+    makePage('submit/ios.mdx'),
+    makePage('submit/eas-json.mdx'),
   ]),
   makeSection('EAS Hosting', [
     makePage('eas/hosting/introduction.mdx'),
@@ -475,12 +503,6 @@ export const eas = [
       makePage('eas/hosting/reference/responses-and-headers.mdx'),
       makePage('eas/hosting/reference/worker-runtime.mdx'),
     ]),
-  ]),
-  makeSection('EAS Submit', [
-    makePage('submit/introduction.mdx'),
-    makePage('submit/android.mdx'),
-    makePage('submit/ios.mdx'),
-    makePage('submit/eas-json.mdx'),
   ]),
   makeSection('EAS Update', [
     makePage('eas-update/introduction.mdx'),
@@ -512,6 +534,7 @@ export const eas = [
       makePage('eas-update/code-signing.mdx'),
       makePage('eas-update/asset-selection.mdx'),
       makePage('eas-update/standalone-service.mdx'),
+      makePage('eas-update/request-proxying.mdx'),
       makePage('eas-update/codepush.mdx'),
       makePage('eas-update/migrate-from-classic-updates.mdx'),
       makePage('eas-update/trace-update-id-expo-dashboard.mdx'),
@@ -604,8 +627,7 @@ export const learn = [
 const preview = [
   makeSection('Preview', [
     makePage('preview/introduction.mdx'),
-    makePage('preview/singular.mdx'),
-    { expanded: true },
+    makeGroup('Expo Router', [makePage('preview/singular.mdx'), { expanded: true }]),
   ]),
 ];
 
@@ -674,6 +696,7 @@ const versionsReference = VERSIONS.reduce(
           makePage('more/expo-cli.mdx'),
           makePage('more/create-expo.mdx'),
           makePage('more/qr-codes.mdx'),
+          makePage('more/release-statuses.mdx'),
           makePage('more/glossary-of-terms.mdx'),
         ],
         {
@@ -748,13 +771,18 @@ function makePage(file) {
     data.title = '';
   }
 
+  const isIndex = path.basename(file, path.extname(file)) === 'index';
+
   const result = {
     // TODO(cedric): refactor name into title
     name: data.sidebar_title ?? data.title,
     // TODO(cedric): refactor href into url
     href: url,
+    isIndex, // If the page is index from a directory, it will be listed at first
     isNew: data.isNew ?? undefined,
     isAlpha: data.isAlpha ?? undefined,
+    isBeta: data.isBeta ?? undefined,
+    isPreview: data.isPreview ?? undefined,
     isDeprecated: data.isDeprecated ?? undefined,
     inExpoGo: data.inExpoGo ?? undefined,
     hasVideoLink: data.hasVideoLink ?? undefined,
@@ -776,11 +804,70 @@ function makePage(file) {
  * Load all pages from a single directory.
  */
 function pagesFromDir(dir) {
-  return fs
-    .readdirSync(path.resolve(PAGES_DIR, dir), { withFileTypes: true })
-    .filter(entity => entity.isFile())
-    .map(file => makePage(path.join(dir, file.name)))
-    .sort((a, b) => a.name.localeCompare(b.name));
+  const dirPath = path.resolve(PAGES_DIR, dir);
+  const entities = fs.readdirSync(dirPath, { withFileTypes: true });
+
+  const files = entities
+    .filter(entity => entity.isFile() && entity.name !== 'metadata.json')
+    .map(file => makePage(path.join(dir, file.name)));
+
+  const folders = entities
+    .filter(entity => entity.isDirectory())
+    .map(folder => {
+      const folderPages = pagesFromDir(path.join(dir, folder.name));
+      const sortedFolderPages = folderPages.sort((a, b) => {
+        // prioritize index files first
+        if (a.isIndex && !b.isIndex) {
+          return -1;
+        }
+        if (!a.isIndex && b.isIndex) {
+          return 1;
+        }
+
+        // otherwise sort by name (title)
+        return a.name.localeCompare(b.name);
+      });
+
+      if (folderPages.length === 0) {
+        return null;
+      }
+
+      const metaJsonPath = path.join(dirPath, folder.name, 'metadata.json');
+      let sidebarTitle = folder.name.toUpperCase();
+      let expanded = true;
+
+      if (fs.existsSync(metaJsonPath)) {
+        try {
+          const metaContent = fs.readFileSync(metaJsonPath, 'utf-8');
+          const meta = JSON.parse(metaContent);
+          if (meta.sidebarTitle) {
+            sidebarTitle = meta.sidebarTitle;
+          }
+          if (typeof meta.expanded === 'boolean') {
+            expanded = meta.expanded;
+          }
+        } catch (error) {
+          // fallback to default behavior
+          console.warn(`Invalid metadata.json in ${metaJsonPath}:`, error.message);
+        }
+      }
+
+      return makeGroup(sidebarTitle, sortedFolderPages, { expanded });
+    })
+    .filter(Boolean);
+
+  return [...files, ...folders].sort((a, b) => {
+    // prioritize index files first
+    if (a.isIndex && !b.isIndex) {
+      return -1;
+    }
+    if (!a.isIndex && b.isIndex) {
+      return 1;
+    }
+
+    // otherwise sort by name (title)
+    return a.name.localeCompare(b.name);
+  });
 }
 
 /**

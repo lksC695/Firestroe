@@ -1,6 +1,8 @@
 import partition from 'lodash/partition';
 import { Language, Prism } from 'prism-react-renderer';
-import { Children, ReactElement, ReactNode, PropsWithChildren } from 'react';
+import { Children, ReactElement, ReactNode, PropsWithChildren, isValidElement } from 'react';
+
+import { toString } from './utilities';
 
 // Read more: https://github.com/FormidableLabs/prism-react-renderer#custom-language-support
 async function initPrismAsync() {
@@ -165,31 +167,35 @@ export function parseValue(value: string) {
   };
 }
 
-export function findNodeByPropInChildren<T>(element: ReactElement, propToFind: string): T | null {
-  if (!element || typeof element !== 'object') {
+export function findNodeByPropInChildren<T>(
+  element: ReactElement,
+  propToFind: string
+): PropsWithChildren<{ [propToFind]: T }> | T | null {
+  if (!isValidElement<PropsWithChildren>(element)) {
     return null;
   }
 
-  if (element.props?.[propToFind]) {
-    return element.props;
+  const props = element.props as PropsWithChildren<{ [propToFind]: T }>;
+  if (props && Object.prototype.hasOwnProperty.call(props, propToFind)) {
+    return props;
   }
 
-  if (element.props?.children) {
-    const children = element.props.children;
+  const { children } = props;
+  if (!children) {
+    return null;
+  }
 
-    if (Array.isArray(children)) {
-      for (const child of Children.toArray(children)) {
-        const allProps = findNodeByPropInChildren<T>(child as ReactElement, propToFind);
-        if (allProps) {
-          return allProps;
-        }
+  if (Array.isArray(children)) {
+    for (const child of Children.toArray(children)) {
+      const found = findNodeByPropInChildren<T>(child as ReactElement, propToFind);
+      if (found) {
+        return found;
       }
-    } else {
-      return findNodeByPropInChildren<T>(children as ReactElement, propToFind);
     }
+    return null;
   }
 
-  return null;
+  return findNodeByPropInChildren<T>(children as ReactElement, propToFind);
 }
 
 export function getCodeBlockDataFromChildren(children?: ReactNode, className?: string) {
@@ -203,8 +209,9 @@ export function getCodeBlockDataFromChildren(children?: ReactNode, className?: s
     children as ReactElement,
     'className'
   );
-  const code = parseValue(codeNode?.children?.toString() ?? '');
-  const codeLanguage = codeNode?.className ? codeNode.className.split('-')[1] : 'jsx';
+  const code = parseValue(toString(codeNode?.children));
+  const codeLanguage =
+    typeof codeNode?.className === 'string' ? codeNode.className.split('-')[1] : 'jsx';
 
   return { ...code, language: codeLanguage };
 }

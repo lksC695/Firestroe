@@ -13,7 +13,7 @@ it('attaches and removes process listeners', () => {
 
   const fn = jest.fn();
 
-  expect(process.on).not.toBeCalled();
+  expect(process.on).not.toHaveBeenCalled();
 
   const unsub = installExitHooks(fn);
   const unsub2 = installExitHooks(jest.fn());
@@ -24,15 +24,15 @@ it('attaches and removes process listeners', () => {
   expect(process.on).toHaveBeenNthCalledWith(3, 'SIGTERM', expect.any(Function));
   expect(process.on).toHaveBeenNthCalledWith(4, 'SIGBREAK', expect.any(Function));
 
-  expect(process.removeListener).not.toBeCalled();
+  expect(process.removeListener).not.toHaveBeenCalled();
 
   // Unsub the first listener, this won't remove the other listeners.
   unsub();
-  expect(process.removeListener).not.toBeCalled();
+  expect(process.removeListener).not.toHaveBeenCalled();
 
   // Unsub the second listener, this will remove the other listeners.
   unsub2();
-  expect(process.removeListener).toBeCalledTimes(4);
+  expect(process.removeListener).toHaveBeenCalledTimes(4);
 });
 
 describe(ensureProcessExitsAfterDelay, () => {
@@ -45,23 +45,6 @@ describe(ensureProcessExitsAfterDelay, () => {
 
     // Immediately let it pass
     expect(exitSpy).not.toHaveBeenCalled();
-  });
-
-  it('detects unexpected active resources and force exits', async () => {
-    const exitSpy = jest.spyOn(process, 'exit').mockImplementation();
-
-    // Test if the process is force-exited after 0.2 seconds
-    ensureProcessExitsAfterDelay(200);
-
-    // Wait longer than the exit timer (0.5s)
-    await timers.setTimeout(500);
-
-    // Ensure `process.exit` was called
-    expect(exitSpy).toHaveBeenCalledWith(0);
-    // Ensure a warning was logged
-    expect(warn).toHaveBeenCalledWith(
-      'Something prevented Expo from exiting, forcefully exiting now.'
-    );
   });
 
   it('detects and logs unexpected active child processes and force exits', async () => {

@@ -1,17 +1,14 @@
 import spawnAsync from '@expo/spawn-async';
 import fs from 'fs/promises';
 import path from 'path';
-import rimraf from 'rimraf';
 
-import getFingerprintHashFromCLIAsync from './utils/CLIUtils';
+import { getFingerprintHashFromCLIAsync } from './utils/CLIUtils';
 import { createProjectHashAsync } from '../../src/Fingerprint';
 
-jest.mock('../../src/sourcer/ExpoConfigLoader', () => ({
+jest.mock('../../src/ExpoConfigLoader', () => ({
   // Mock the getExpoConfigLoaderPath to use the built version rather than the typescript version from src
   getExpoConfigLoaderPath: jest.fn(() =>
-    jest
-      .requireActual('path')
-      .resolve(__dirname, '..', '..', 'build', 'sourcer', 'ExpoConfigLoader.js')
+    jest.requireActual('path').resolve(__dirname, '..', '..', 'build', 'ExpoConfigLoader.js')
   ),
 }));
 
@@ -22,7 +19,7 @@ describe('updates managed support', () => {
   const projectRoot = path.join(tmpDir, projectName);
 
   beforeAll(async () => {
-    rimraf.sync(projectRoot);
+    await fs.rm(projectRoot, { force: true, recursive: true });
     // Pin the SDK version to prevent the latest version breaking snapshots
     await spawnAsync('bunx', ['create-expo-app', '-t', 'blank@sdk-51', projectName], {
       stdio: 'inherit',
@@ -43,7 +40,7 @@ describe('updates managed support', () => {
   });
 
   afterAll(async () => {
-    rimraf.sync(projectRoot);
+    await fs.rm(projectRoot, { force: true, recursive: true });
   });
 
   it('should have same hash before and after prebuild', async () => {
@@ -71,6 +68,13 @@ describe('updates managed support', () => {
     await spawnAsync('npx', ['expo', 'prebuild'], {
       stdio: 'ignore',
       cwd: projectRoot,
+      env: {
+        ...process.env,
+        // NOTE(cedric): for some reason older version of `@expo/image-utils` find a binary of sharp on Windows.
+        // Unfortunately, this doesn't mean we can use Sharp and will cause prebuild to fail.
+        // Manually disable Sharp for this test to avoid falky test behavior on Windows CI.
+        EXPO_IMAGE_UTILS_NO_SHARP: '1',
+      },
     });
     const fingerprintHash2 = await createProjectHashAsync(projectRoot, {
       ignorePaths: ['android/**/*', 'ios/**/*'],

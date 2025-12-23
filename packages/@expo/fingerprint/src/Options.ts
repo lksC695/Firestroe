@@ -5,9 +5,10 @@ import path from 'path';
 
 import { loadConfigAsync } from './Config';
 import { satisfyExpoVersion } from './ExpoResolver';
-import type { Config, NormalizedOptions, Options } from './Fingerprint.types';
+import type { Config, NormalizedOptions, Options, Platform } from './Fingerprint.types';
+import { resolveProjectWorkflowAsync } from './ProjectWorkflow';
 import { SourceSkips } from './sourcer/SourceSkips';
-import { buildDirMatchObjects, buildPathMatchObjects } from './utils/Path';
+import { appendIgnorePath, buildDirMatchObjects, buildPathMatchObjects } from './utils/Path';
 
 export const FINGERPRINT_IGNORE_FILENAME = '.fingerprintignore';
 
@@ -51,8 +52,19 @@ export const DEFAULT_IGNORE_PATHS = [
   'app.config.json',
   'app.json',
 
+  // Ignore CocoaPods generated files
+  // https://github.com/expo/expo/blob/d0e39858ead9a194d90990f89903e773b9d33582/packages/expo-sqlite/ios/ExpoSQLite.podspec#L25-L36
+  // https://github.com/expo/expo/blob/d0e39858ead9a194d90990f89903e773b9d33582/packages/expo-updates/ios/EXUpdates.podspec#L51-L58
+  '**/node_modules/expo-sqlite/ios/sqlite3.[ch]',
+  '**/node_modules/expo-updates/ios/EXUpdates/BSPatch/bspatch.c',
+
   // Ignore nested node_modules
   '**/node_modules/**/node_modules/**',
+
+  // Ignore node binaries that might be platform dependent
+  '**/node_modules/**/*.node',
+  '**/node_modules/@img/sharp-*/**/*',
+  '**/node_modules/sharp/{build,vendor}/**/*',
 ];
 
 export const DEFAULT_SOURCE_SKIPS = SourceSkips.PackageJsonAndroidAndIosScriptsIfNotContainRun;
@@ -67,6 +79,13 @@ export async function normalizeOptionsAsync(
     config?.ignorePaths,
     options
   );
+  const useCNGForPlatforms = await resolveUseCNGAsync(projectRoot, options, ignorePathMatchObjects);
+  if (useCNGForPlatforms.android) {
+    appendIgnorePath(ignorePathMatchObjects, 'android/**/*');
+  }
+  if (useCNGForPlatforms.ios) {
+    appendIgnorePath(ignorePathMatchObjects, 'ios/**/*');
+  }
   return {
     // Defaults
     platforms: ['android', 'ios'],
@@ -85,6 +104,7 @@ export async function normalizeOptionsAsync(
       false,
     ignorePathMatchObjects,
     ignoreDirMatchObjects: buildDirMatchObjects(ignorePathMatchObjects),
+    useCNGForPlatforms,
   };
 }
 
@@ -113,4 +133,25 @@ async function collectIgnorePathsAsync(
   } catch {}
 
   return buildPathMatchObjects(ignorePaths);
+}
+
+async function resolveUseCNGAsync(
+  projectRoot: string,
+  options: Options | undefined,
+  ignorePathMatchObjects: Minimatch[]
+): Promise<Record<Platform, boolean>> {
+  const results: Record<Platform, boolean> = {
+    android: false,
+    ios: false,
+  };
+  const platforms = options?.platforms ?? ['android', 'ios'];
+  for (const platform of platforms) {
+    const projectWorkflow = await resolveProjectWorkflowAsync(
+      projectRoot,
+      platform,
+      ignorePathMatchObjects
+    );
+    results[platform] = projectWorkflow === 'managed';
+  }
+  return results;
 }

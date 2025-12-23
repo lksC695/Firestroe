@@ -90,15 +90,22 @@ for (const args of [
   });
 }
 
-describe('server', () => {
-  const expo = createExpoStart({
-    env: {
-      EXPO_USE_FAST_RESOLVER: 'true',
-    },
-  });
+// Due to change in `expo` package the tests suit will fail on Windows, as npm pack fails to execute `expo` prepare on Windows.
+const describeSkipWin = process.platform === 'win32' ? describe.skip : describe;
+
+describeSkipWin('server', () => {
+  const expo = createExpoStart();
 
   beforeEach(async () => {
-    expo.options.cwd = await setupTestProjectWithOptionsAsync('basic-start', 'with-blank');
+    expo.options.cwd = await setupTestProjectWithOptionsAsync('basic-start', 'with-blank', {
+      // TODO(@hassankhan, @krystofwoldrich): remove all linked after publishing
+      linkExpoPackages: [
+        '@expo/router-server',
+        '@expo/log-box',
+        'expo',
+        '@expo/local-build-cache-provider',
+      ],
+    });
     await fs.promises.rm(path.join(projectRoot, '.expo'), { force: true, recursive: true });
     await expo.startAsync();
   });
@@ -121,22 +128,20 @@ describe('server', () => {
     // URLs
     expect(manifest.launchAsset.url).toBe(
       new URL(
-        '/node_modules/expo/AppEntry.bundle?platform=ios&dev=true&hot=false&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable',
+        '/node_modules/expo/AppEntry.bundle?platform=ios&dev=true&hot=false&lazy=true&transform.engine=hermes&transform.bytecode=1&transform.routerRoot=app&unstable_transformProfile=hermes-stable',
         expo.url
       ).href
     );
+
     expect(manifest.extra.expoGo?.debuggerHost).toBe(expo.url.host);
     expect(manifest.extra.expoGo?.mainModuleName).toMatchPath('node_modules/expo/AppEntry');
     expect(manifest.extra.expoClient?.hostUri).toBe(expo.url.host);
 
     // Manifest
     expect(manifest.runtimeVersion).toBe('1.0');
-    expect(manifest.extra.expoClient?.sdkVersion).toBe('52.0.0');
+    expect(manifest.extra.expoClient?.sdkVersion).toBe('54.0.0');
     expect(manifest.extra.expoClient?.slug).toBe('basic-start');
     expect(manifest.extra.expoClient?.name).toBe('basic-start');
-
-    // Custom
-    expect(manifest.extra.expoGo?.__flipperHack).toBe('React Native packager is running');
 
     const bundleResponse = await expo.fetchBundleAsync(manifest.launchAsset.url);
     const bundleContent = await bundleResponse.text();
@@ -152,7 +157,15 @@ describe('server', () => {
       version: 3,
       sources: expect.arrayContaining([
         '__prelude__',
-        expect.pathMatching(/metro-runtime\/src\/polyfills\/require\.js$/),
+        // NOTE(@kitten): We can slot in our own runtime here
+        expect.pathMatching(
+          new RegExp(
+            [
+              '/metro-runtime/src/polyfills/require.js',
+              '/@expo/cli/build/metro-require/require.js',
+            ].join('|')
+          )
+        ),
         expect.pathMatching(/@react-native\/js-polyfills\/console\.js$/),
         expect.pathMatching(/@react-native\/js-polyfills\/error-guard\.js$/),
         '\0polyfill:external-require',
@@ -165,14 +178,12 @@ describe('server', () => {
 });
 
 describe('start - dev clients', () => {
-  const expo = createExpoStart({
-    env: {
-      EXPO_USE_FAST_RESOLVER: 'true',
-    },
-  });
+  const expo = createExpoStart();
+
+  let projectRoot: string;
 
   beforeAll(async () => {
-    const projectRoot = await setupTestProjectWithOptionsAsync('start-dev-clients', 'with-blank');
+    projectRoot = await setupTestProjectWithOptionsAsync('start-dev-clients', 'with-blank');
     expo.options.cwd = projectRoot;
 
     // Add a `.env` file with `TEST_SCHEME`
@@ -193,6 +204,9 @@ describe('start - dev clients', () => {
   });
   afterAll(async () => {
     await expo.stopAsync();
+    // Remove app.config.js and .env files
+    await fs.promises.unlink(path.join(projectRoot, 'app.config.js'));
+    await fs.promises.unlink(path.join(projectRoot, '.env'));
   });
 
   it('runs `npx expo start` in dev client mode, using environment variable from .env', async () => {
@@ -210,7 +224,6 @@ describe('start - webcontainer', () => {
       EXPO_USE_STATIC: 'server',
       E2E_ROUTER_SRC: 'server',
       E2E_ROUTER_ASYNC: 'development',
-      EXPO_USE_FAST_RESOLVER: 'true',
       // Force webcontainer mode
       CI: 'false',
       EXPO_FORCE_WEBCONTAINER_ENV: 'true',

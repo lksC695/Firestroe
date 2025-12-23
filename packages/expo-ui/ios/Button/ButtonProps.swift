@@ -20,25 +20,9 @@ internal enum ButtonRole: String, Enumerable {
   }
 }
 
-internal enum ButtonVariant: String, Enumerable {
-  case `default`
-  case bordered
-  case accessoryBar
-  case accessoryBarAction
-  case borderedProminent
-  case borderless
-  case card
-  case link
-  case plain
-}
-
-final class ButtonProps: ExpoSwiftUI.ViewProps, Observable {
-  required init() {}
-  @Field var text: String?
+public final class ButtonProps: UIBaseViewProps, Observable {
+  @Field var label: String?
   @Field var systemImage: String?
-  @Field var color: Color?
-  @Field var buttonRole: ButtonRole? = .default
-  @Field var variant: ButtonVariant? = .default
-  @Field var disabled: Bool = false
-  var onButtonPressed = EventDispatcher()
+  @Field var role: ButtonRole?
+  var onButtonPress = EventDispatcher()
 }

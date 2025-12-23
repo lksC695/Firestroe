@@ -63,7 +63,7 @@ class ClassDefinitionSpec: ExpoSpec {
             }
           }
         }
-        appContext.moduleRegistry.register(moduleType: ClassTestModule.self)
+        appContext.moduleRegistry.register(moduleType: ClassTestModule.self, name: "ClassTest")
       }
 
       it("is a function") {
@@ -112,7 +112,7 @@ class ClassDefinitionSpec: ExpoSpec {
       let runtime = try! appContext.runtime
 
       beforeSuite {
-        appContext.moduleRegistry.register(moduleType: ModuleWithCounterClass.self)
+        appContext.moduleRegistry.register(moduleType: ModuleWithCounterClass.self, name: "TestModule")
       }
       it("is defined") {
         let isDefined = try runtime.eval("'Counter' in expo.modules.TestModule")
@@ -188,6 +188,103 @@ class ClassDefinitionSpec: ExpoSpec {
         expect(value.kind) == .object
         expect(value.getObject().getProperty("currentValue").getInt()) == initialValue
       }
+
+      it("initializes the shared object from static function") {
+        let initialValue = Int.random(in: 1..<100)
+        let value = try runtime.eval("expo.modules.TestModule.Counter.create(\(initialValue))")
+
+        expect(value.kind) == .object
+        expect(value.getObject().getProperty("currentValue").getInt()) == initialValue
+      }
+
+      it("initializes the shared object from static async function") {
+        let initialValue = Int.random(in: 1..<100)
+        try runtime
+          .eval(
+            "expo.modules.TestModule.Counter.createAsync(\(initialValue)).then((result) => { globalThis.result = result; })"
+          )
+
+        expect(safeBoolEval("globalThis.result != null")).toEventually(beTrue(), timeout: .milliseconds(4000))
+        let object = try runtime.eval("object = globalThis.result")
+        
+        expect(object.kind) == .object
+        expect(object.getObject().getProperty("currentValue").getInt()) == initialValue
+      }
+      // For async tests, this is a safe way to repeatedly evaluate JS
+      // and catch both Swift and ObjC exceptions
+      func safeBoolEval(_ js: String) -> Bool {
+        var result = false
+        do {
+          try EXUtilities.catchException {
+            guard let jsResult = try? runtime.eval(js) else {
+              return
+            }
+            result = jsResult.getBool()
+          }
+        } catch {
+          return false
+        }
+        return result
+      }
+    }
+
+    describe("constructor error handling") {
+      let appContext = AppContext.create()
+      let runtime = try! appContext.runtime
+
+      beforeSuite {
+        class ErrorTestModule: Module {
+          func definition() -> ModuleDefinition {
+            Name("ErrorTest")
+
+            Class("FailingClass") {
+              Constructor { (shouldFail: Bool) in
+                if shouldFail {
+                  throw TestCodedException()
+                }
+                return Counter(initialValue: 0)
+              }
+
+              Function("test") {
+                return "success"
+              }
+            }
+          }
+        }
+        appContext.moduleRegistry.register(moduleType: ErrorTestModule.self, name: "ErrorTest")
+      }
+
+      it("exceptions are in the correct format") {
+        expect {
+          try runtime.eval("new expo.modules.ErrorTest.FailingClass(true)")
+        }.to(throwError { (error: JavaScriptEvalException) in
+          let reason = error.param.userInfo["message"] as? String ?? ""
+          expect(reason).to(contain("Calling the 'constructor' function has failed"))
+          expect(reason).to(contain("→ Caused by:"))
+          expect(reason).to(contain("This is a test Exception with a code"))
+        })
+      }
+
+      it("check error codes from coded exceptions") {
+        let errorCode = try runtime.eval([
+          "try { new expo.modules.ErrorTest.FailingClass(true) } catch (error) { error.code }"
+        ]).getString()
+        expect(errorCode) == "E_TEST_CODE"
+      }
+
+      it("succeeds when constructor does not throw") {
+        let result = try runtime.eval("new expo.modules.ErrorTest.FailingClass(false)")
+        expect(result.kind) == .object
+        expect(result.getObject().hasProperty("test")) == true
+      }
+
+      it("can call methods on successfully constructed objects") {
+        let result = try runtime.eval([
+          "obj = new expo.modules.ErrorTest.FailingClass(false)",
+          "obj.test()"
+        ])
+        expect(result.getString()) == "success"
+      }
     }
   }
 }
@@ -207,6 +304,15 @@ fileprivate final class ModuleWithCounterClass: Module {
       Constructor { (initialValue: Int) in
         return Counter(initialValue: initialValue)
       }
+      
+      StaticFunction("create") { (initialValue: Int) in
+        return Counter(initialValue: initialValue)
+      }
+
+      StaticAsyncFunction("createAsync") { (initialValue: Int, p: Promise) in
+        p.resolve(Counter(initialValue: initialValue))
+      }
+
       Function("increment") { (counter, value: Int) in
         counter.increment(by: value)
       }

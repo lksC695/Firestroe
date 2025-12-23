@@ -40,14 +40,14 @@ concurrency:
 
 jobs:
   test:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     timeout-minutes: 150
     env:
       ORG_GRADLE_PROJECT_reactNativeArchitectures: x86_64
       GRADLE_OPTS: -Dorg.gradle.jvmargs=-Xmx4096m -XX:MaxMetaspaceSize=2048m -Dorg.gradle.daemon=false
     strategy:
       matrix:
-        api-level: [34]
+        api-level: [36]
     steps:
       - name: ⬢ Setup Node
         uses: actions/setup-node@v4

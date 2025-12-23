@@ -1,14 +1,17 @@
-import { StyleProp, ViewStyle } from 'react-native';
-import { ViewEvent } from '../../types';
+import { Ref } from 'react';
+import { ExpoModifier, ViewEvent } from '../../types';
 /**
  * @hidden Not used anywhere yet.
  */
 export type TextInputRole = 'default' | 'cancel' | 'destructive';
+export type TextInputRef = {
+    setText: (newText: string) => Promise<void>;
+};
 export type TextInputProps = {
     /**
-     * Additional styles to apply to the TextInput.
+     * Can be used for imperatively setting text on the TextInput component.
      */
-    style?: StyleProp<ViewStyle>;
+    ref?: Ref<TextInputRef>;
     /**
      * Initial value that the TextInput displays when being mounted. As the TextInput is an uncontrolled component, change the key prop if you need to change the text value.
      */
@@ -50,6 +53,23 @@ export type TextInputProps = {
      * @default true
      */
     autocorrection?: boolean;
+    /**
+     * Options to request software keyboard to capitalize the text. Applies to languages which has upper-case and lower-case letters.
+     *
+     * Available options:
+     * - `characters`: Capitalize all characters.
+     * - `none`: Do not auto-capitalize text.
+     * - `sentences`: Capitalize the first character of each sentence.
+     * - `unspecified`: Capitalization behavior is not specified.
+     * - `words`: Capitalize the first character of every word.
+     * @default none
+     * @platform android
+     */
+    autoCapitalize?: 'characters' | 'none' | 'sentences' | 'unspecified' | 'words';
+    /**
+     * Modifiers for the component.
+     */
+    modifiers?: ExpoModifier[];
 };
 export type NativeTextInputProps = Omit<TextInputProps, 'onChangeText'> & {} & ViewEvent<'onValueChanged', {
     value: string;

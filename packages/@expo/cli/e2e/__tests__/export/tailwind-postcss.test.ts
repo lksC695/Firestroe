@@ -20,7 +20,6 @@ describe('exports with tailwind and postcss', () => {
         EXPO_USE_STATIC: 'static',
         E2E_ROUTER_SRC: 'tailwind-postcss',
         E2E_ROUTER_ASYNC: 'development',
-        EXPO_USE_FAST_RESOLVER: 'true',
       },
     });
   });
@@ -31,6 +30,7 @@ describe('exports with tailwind and postcss', () => {
     // The wrapper should not be included as a route.
     expect(files).toEqual([
       '+not-found.html',
+      '_expo/.routes.json',
       expect.stringMatching(/_expo\/static\/css\/global-.*\.css/),
       expect.stringMatching(/_expo\/static\/js\/web\/entry-.*\.js/),
       '_sitemap.html',

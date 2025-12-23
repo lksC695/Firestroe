@@ -2,7 +2,6 @@ package host.exp.exponent.factories
 
 import android.content.Context
 import com.facebook.react.common.SurfaceDelegateFactory
-import com.facebook.react.devsupport.BridgeDevSupportManager
 import com.facebook.react.devsupport.DevSupportManagerFactory
 import com.facebook.react.devsupport.ReactInstanceDevHelper
 import com.facebook.react.devsupport.ReleaseDevSupportManager
@@ -24,24 +23,13 @@ class ExpoGoDevSupportFactory(private val devBundleDownloadListener: DevBundleDo
     redBoxHandler: RedBoxHandler?,
     devBundleDownloadListener: DevBundleDownloadListener?,
     minNumShakes: Int,
-    customPackagerCommandHandlers: MutableMap<String, RequestHandler>?,
+    customPackagerCommandHandlers: Map<String, RequestHandler>?,
     surfaceDelegateFactory: SurfaceDelegateFactory?,
     devLoadingViewManager: DevLoadingViewManager?,
     pausedInDebuggerOverlayManager: PausedInDebuggerOverlayManager?
   ): DevSupportManager {
-    return BridgeDevSupportManager(
-      applicationContext,
-      reactInstanceManagerHelper,
-      packagerPathForJSBundleName,
-      enableOnCreate,
-      redBoxHandler,
-      this.devBundleDownloadListener,
-      this.minNumShakes,
-      customPackagerCommandHandlers,
-      surfaceDelegateFactory,
-      devLoadingViewManager,
-      pausedInDebuggerOverlayManager
-    )
+    // This method was used only by legacy architecture and is stubbed here.
+    return ReleaseDevSupportManager()
   }
 
   override fun create(
@@ -52,7 +40,7 @@ class ExpoGoDevSupportFactory(private val devBundleDownloadListener: DevBundleDo
     redBoxHandler: RedBoxHandler?,
     devBundleDownloadListener: DevBundleDownloadListener?,
     minNumShakes: Int,
-    customPackagerCommandHandlers: MutableMap<String, RequestHandler>?,
+    customPackagerCommandHandlers: Map<String, RequestHandler>?,
     surfaceDelegateFactory: SurfaceDelegateFactory?,
     devLoadingViewManager: DevLoadingViewManager?,
     pausedInDebuggerOverlayManager: PausedInDebuggerOverlayManager?,

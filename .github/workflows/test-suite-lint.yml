@@ -1,4 +1,4 @@
-name: Test Suite Lint
+name: Test Suite Lint & Test
 
 on:
   workflow_dispatch: {}
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   lint:
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-24.04
     steps:
       - name: 👀 Checkout
         uses: actions/checkout@v4
@@ -36,4 +36,7 @@ jobs:
         run: yarn install --frozen-lockfile
       - name: 🚨 Lint test-suite files
         run: yarn lint --max-warnings 0
+        working-directory: apps/test-suite
+      - name: 🧪 Run unit tests
+        run: yarn test
         working-directory: apps/test-suite

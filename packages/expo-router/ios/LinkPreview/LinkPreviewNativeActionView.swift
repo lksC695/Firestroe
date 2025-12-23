@@ -1,0 +1,256 @@
+import ExpoModulesCore
+
+class LinkPreviewNativeActionView: RouterViewWithLogger, LinkPreviewMenuUpdatable {
+  var identifier: String = ""
+  // TODO(@ubax): Add @ReactiveProp similar to RouterToolbar to reduce repetition
+  // MARK: - Shared props
+  var title: String = "" {
+    didSet {
+      updateUiAction()
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var icon: String? {
+    didSet {
+      updateUiAction()
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var destructive: Bool? {
+    didSet {
+      updateUiAction()
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var disabled: Bool = false {
+    didSet {
+      updateUiAction()
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+
+  // MARK: - Action only props
+  var isOn: Bool? {
+    didSet {
+      updateUiAction()
+    }
+  }
+  var keepPresented: Bool? {
+    didSet {
+      updateUiAction()
+    }
+  }
+  var discoverabilityLabel: String? {
+    didSet {
+      updateUiAction()
+    }
+  }
+  var subtitle: String? {
+    didSet {
+      updateUiAction()
+    }
+  }
+
+  // MARK: - Menu only props
+  var singleSelection: Bool = false {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var displayAsPalette: Bool = false {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var displayInline: Bool = false {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+
+  // MARK: - UIBarButtonItem props
+  var routerHidden: Bool = false {
+    didSet {
+      updateUiAction()
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var titleStyle: TitleStyle? {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var sharesBackground: Bool? {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var hidesSharedBackground: Bool? {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var customTintColor: UIColor? {
+    didSet {
+      updateUiAction()
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var barButtonItemStyle: UIBarButtonItem.Style? {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var subActions: [LinkPreviewNativeActionView] = [] {
+    didSet {
+      updateMenu()
+    }
+  }
+  var accessibilityLabelForMenu: String? {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+  var accessibilityHintForMenu: String? {
+    didSet {
+      if isMenuAction {
+        updateMenu()
+      }
+    }
+  }
+
+  // MARK: - Events
+  let onSelected = EventDispatcher()
+
+  // MARK: - Native API
+  weak var parentMenuUpdatable: LinkPreviewMenuUpdatable?
+
+  private var baseUiAction: UIAction
+  private var menuAction: UIMenu
+
+  var isMenuAction: Bool {
+    return !subActions.isEmpty
+  }
+
+  var uiAction: UIMenuElement {
+    isMenuAction ? menuAction : baseUiAction
+  }
+
+  required init(appContext: AppContext? = nil) {
+    baseUiAction = UIAction(title: "", handler: { _ in })
+    menuAction = UIMenu(title: "", image: nil, options: [], children: [])
+    super.init(appContext: appContext)
+    clipsToBounds = true
+    baseUiAction = UIAction(title: "", handler: { _ in self.onSelected() })
+  }
+
+  func updateMenu() {
+    let subActions = subActions.map { subAction in
+      subAction.uiAction
+    }
+    var options: UIMenu.Options = []
+    if #available(iOS 17.0, *) {
+      if displayAsPalette {
+        options.insert(.displayAsPalette)
+      }
+    }
+    if singleSelection {
+      options.insert(.singleSelection)
+    }
+    if displayInline {
+      options.insert(.displayInline)
+    }
+    if destructive == true {
+      options.insert(.destructive)
+    }
+
+    menuAction = UIMenu(
+      title: title,
+      image: icon.flatMap { UIImage(systemName: $0) },
+      options: options,
+      children: subActions
+    )
+
+    parentMenuUpdatable?.updateMenu()
+  }
+
+  private func updateUiAction() {
+    var attributes: UIMenuElement.Attributes = []
+    if destructive == true { attributes.insert(.destructive) }
+    if disabled == true { attributes.insert(.disabled) }
+    if routerHidden {
+      attributes.insert(.hidden)
+    }
+
+    if #available(iOS 16.0, *) {
+      if keepPresented == true { attributes.insert(.keepsMenuPresented) }
+    }
+
+    baseUiAction.title = title
+    baseUiAction.image = icon.flatMap { UIImage(systemName: $0) }
+    baseUiAction.attributes = attributes
+    baseUiAction.state = isOn == true ? .on : .off
+
+    if let subtitle = subtitle {
+      baseUiAction.subtitle = subtitle
+    }
+    if let label = discoverabilityLabel {
+      baseUiAction.discoverabilityTitle = label
+    }
+
+    parentMenuUpdatable?.updateMenu()
+  }
+
+  override func mountChildComponentView(_ childComponentView: UIView, index: Int) {
+    if let childActionView = childComponentView as? LinkPreviewNativeActionView {
+      subActions.insert(childActionView, at: index)
+      childActionView.parentMenuUpdatable = self
+    } else {
+      logger?.warn(
+        "[expo-router] Unknown child component view (\(childComponentView)) mounted to NativeLinkPreviewActionView. This is most likely a bug in expo-router."
+      )
+    }
+  }
+
+  override func unmountChildComponentView(_ child: UIView, index: Int) {
+    if let childActionView = child as? LinkPreviewNativeActionView {
+      subActions.removeAll(where: { $0 == childActionView })
+    } else {
+      logger?.warn(
+        "ExpoRouter: Unknown child component view (\(child)) unmounted from NativeLinkPreviewActionView. This is most likely a bug in expo-router."
+      )
+    }
+  }
+}
+
+protocol LinkPreviewMenuUpdatable: AnyObject {
+  func updateMenu()
+}

@@ -24,7 +24,7 @@ class CustomReactNativeFactoryDelegate: ExpoReactNativeFactoryDelegate {
   }
 }
 
-@UIApplicationMain
+@main
 class AppDelegate: ExpoAppDelegate {
   var launchOptions: [UIApplication.LaunchOptionsKey: Any]?
   // AppDelegate keeps a nullable reference to the updates controller
@@ -56,7 +56,6 @@ class AppDelegate: ExpoAppDelegate {
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-    bindReactNativeFactory(factory)
 
     // AppController instance must always be created first.
     // expo-updates creates a different type of controller

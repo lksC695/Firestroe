@@ -11,6 +11,7 @@ import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.kotlin.records.Field
 import expo.modules.kotlin.records.Record
+import expo.modules.kotlin.services.ServicesProvider
 import io.mockk.mockk
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -59,10 +60,10 @@ private class TestModule2 : Module() {
 }
 
 private val provider = object : ModulesProvider {
-  override fun getModulesList(): List<Class<out Module>> {
-    return listOf(
-      TestModule1::class.java,
-      TestModule2::class.java
+  override fun getModulesMap(): Map<Class<out Module>, String?> {
+    return mapOf(
+      TestModule1::class.java to null,
+      TestModule2::class.java to null
     )
   }
 }
@@ -72,8 +73,9 @@ private val provider = object : ModulesProvider {
 class KotlinInteropModuleRegistryTest {
   private val interopModuleRegistry = KotlinInteropModuleRegistry(
     provider,
-    mockk(),
-    WeakReference(mockk(relaxed = true))
+    mockk(relaxed = true),
+    WeakReference(mockk(relaxed = true)),
+    ServicesProvider(mockk(relaxed = true))
   )
 
   @Test

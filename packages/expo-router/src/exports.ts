@@ -11,11 +11,14 @@ export {
   useSegments,
   useRootNavigation,
   useRootNavigationState,
+  useLoaderData,
 } from './hooks';
 
 export { router, Router } from './imperative-api';
 
-export { Link, Redirect, RedirectProps, LinkProps, WebAnchorProps } from './link/Link';
+export * from './link/Link';
+export * from './link/elements';
+export { useIsPreview } from './link/preview/PreviewRouteContext';
 
 export { withLayoutContext } from './layouts/withLayoutContext';
 export { Navigator, Slot };
@@ -44,3 +47,20 @@ export type { RedirectConfig } from './getRoutesCore';
 export type { SingularOptions } from './useScreens';
 
 export type * from './types';
+
+export * from './color';
+
+export {
+  Badge,
+  BadgeProps,
+  Icon,
+  IconProps,
+  Label,
+  LabelProps,
+  VectorIcon,
+  VectorIconProps,
+} from './primitives';
+
+export * from './layouts/stack-utils';
+
+export { unstable_navigationEvents } from './navigationEvents';

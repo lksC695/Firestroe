@@ -6,12 +6,156 @@
 
 ### 🎉 New features
 
+- [iOS] Add support to SwiftUI apps ([#40542](https://github.com/expo/expo/pull/40542) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- [iOS] Decouple dev menu from dev launcher. ([#40669](https://github.com/expo/expo/pull/40669) by [@alanjhughes](https://github.com/alanjhughes))
+- Add initial macOS support ([#41330](https://github.com/expo/expo/pull/41330) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
+### 🐛 Bug fixes
+
+- [iOS] Fix React Native dev menu not showing up in 0.83.x ([#40819](https://github.com/expo/expo/pull/40819) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- Hide Action button in PiP mode to prevent crash ([#40792](https://github.com/expo/expo/pull/40792) by [@kosmydel](https://github.com/kosmydel))
+- [iOS] remove unnecessary `unregisterKeyCommand` for cmd+r ([#41449](https://github.com/expo/expo/pull/41449) by [@vonovak](https://github.com/vonovak))
+- [Android] Prevent some debug only artifacts from being included in release builds. ([#41378](https://github.com/expo/expo/pull/41378) by [@lukmccall](https://github.com/lukmccall))
+
+### 💡 Others
+
+- change debugger connection "warning" to a "tip" ([#39942](https://github.com/expo/expo/pull/39942) by [@vonovak](https://github.com/vonovak))
+- Remove unused dev dependencies ([#39987](https://github.com/expo/expo/pull/39987) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- [android] Make reactNativeHost optional in ReactHostWrapper ([#40085](https://github.com/expo/expo/pull/40085) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- [Android] Remove `ReactHostWrapper` ([#40295](https://github.com/expo/expo/pull/40295) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- Remove tests related files from the published package content. ([#39551](https://github.com/expo/expo/pull/39551) by [@Simek](https://github.com/Simek))
+
+### ⚠️ Notices
+
+- Added support for React Native 0.82.x. ([#39678](https://github.com/expo/expo/pull/39678) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+- Added support for React Native 0.83.x. ([#41564](https://github.com/expo/expo/pull/41564) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
+## 7.0.18 - 2025-12-04
+
+### 🐛 Bug fixes
+
+- [iOS] don't trigger double reload on r key press ([#41355](https://github.com/expo/expo/pull/41355) by [@vonovak](https://github.com/vonovak))
+
+## 7.0.17 - 2025-11-17
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.16 - 2025-11-05
+
+### 🐛 Bug fixes
+
+- [iOS] Fix broken hotkeys after reload. ([#40829](https://github.com/expo/expo/pull/40829) by [@alanjhughes](https://github.com/alanjhughes))
+
+## 7.0.15 - 2025-10-21
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.14 - 2025-10-09
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.13 - 2025-10-01
+
+### 🐛 Bug fixes
+
+- [iOS] Adjust tvOS colors. ([#40006](https://github.com/expo/expo/pull/40006) by [@douglowder](https://github.com/douglowder))
+- [Android] Render registered custom Dev Menu items and allow invoking callbacks ([#39995](https://github.com/expo/expo/pull/39995) by [@Jc-Cloete](https://github.com/Jc-Cloete))
+
+## 7.0.12 - 2025-09-22
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.11 — 2025-09-11
+
+### 🐛 Bug fixes
+
+- [Android] Fix desynchronization issue between UI and state. ([#39553](https://github.com/expo/expo/pull/39553) by [@lukmccall](https://github.com/lukmccall))
+- [iOS] Fix UI on iPad. ([#39549](https://github.com/expo/expo/pull/39549) by [@alanjhughes](https://github.com/alanjhughes))
+
+## 7.0.10 — 2025-09-10
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.9 — 2025-09-08
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.8 — 2025-09-02
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.7 — 2025-08-31
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.6 — 2025-08-28
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.5 — 2025-08-27
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.4 — 2025-08-25
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.3 — 2025-08-18
+
+### 💡 Others
+
+- [ios] Wrap system color references for dev client. ([#38912](https://github.com/expo/expo/pull/38912) by [@douglowder](https://github.com/douglowder))
+- [iOS] Change Constants to Constant/Property. ([#38926](https://github.com/expo/expo/pull/38926) by [@jakex7](https://github.com/jakex7))
+
+## 7.0.2 — 2025-08-16
+
+### 🐛 Bug fixes
+
+- [ios] Prevent crash when getting app icon. ([#38888](https://github.com/expo/expo/pull/38888) by [@douglowder](https://github.com/douglowder))
+
+## 7.0.1 — 2025-08-15
+
+_This version does not introduce any user-facing changes._
+
+## 7.0.0 — 2025-08-13
+
+### 🎉 New features
+
+- [iOS] Migrate dev menu UI to SwiftUI ([#37414](https://github.com/expo/expo/pull/37414) by [@alanjhughes](https://github.com/alanjhughes))
+- [Android] Add floating action button that pulls up the dev menu. ([#38246](https://github.com/expo/expo/pull/38246) by [@behenate](https://github.com/behenate))
+- [iOS] Partial support for Apple TV. ([#38388](https://github.com/expo/expo/pull/38388) by [@douglowder](https://github.com/douglowder))
+
 ### 🐛 Bug fixes
 
 - [Android] Fix Fast Refresh toggled off by default on Android. ([#37132](https://github.com/expo/expo/pull/37132) by [@coolsoftwaretyler](https://github.com/coolsoftwaretyler))
-- [iOS] Fix custom menu actions not triggering their callbacks after a reload. ([#37084](https://github.com/expo/expo/pull/37084) by [@alanjhughes](https://github.com/alanjhughes))
+- [iOS] Fix missing CDP headers when using static frameworks. ([#37448](https://github.com/expo/expo/pull/37448) by [@alanjhughes](https://github.com/alanjhughes))
 
 ### 💡 Others
+
+- Fixed release build error on Android. ([#37579](https://github.com/expo/expo/pull/37579) by [@kudo](https://github.com/kudo))
+- [Android] Implement new design for the floating action button. ([#38497](https://github.com/expo/expo/pull/38497) by [@behenate](https://github.com/behenate))
+
+### ⚠️ Notices
+
+- Added support for React Native 0.80.x. ([#37400](https://github.com/expo/expo/pull/37400) by [@gabrieldonadel](https://github.com/gabrieldonadel))
+
+## 6.1.14 - 2025-07-03
+
+_This version does not introduce any user-facing changes._
+
+## 6.1.13 - 2025-07-02
+
+_This version does not introduce any user-facing changes._
+
+## 6.1.12 - 2025-06-18
+
+_This version does not introduce any user-facing changes._
+
+## 6.1.11 - 2025-06-04
+
+### 🐛 Bug fixes
+
+- [iOS] Fix custom menu actions not triggering their callbacks after a reload. ([#37084](https://github.com/expo/expo/pull/37084) by [@alanjhughes](https://github.com/alanjhughes))
 
 ## 6.1.10 — 2025-05-01
 

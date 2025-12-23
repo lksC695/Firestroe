@@ -12,9 +12,13 @@ import expo.modules.kotlin.exception.DynamicCastException
 import expo.modules.kotlin.exception.MissingTypeConverter
 import expo.modules.kotlin.jni.CppType
 import expo.modules.kotlin.jni.ExpectedType
+import expo.modules.kotlin.jni.JavaScriptArrayBuffer
 import expo.modules.kotlin.jni.JavaScriptFunction
 import expo.modules.kotlin.jni.JavaScriptObject
 import expo.modules.kotlin.jni.JavaScriptValue
+import expo.modules.kotlin.jni.NativeArrayBuffer
+import expo.modules.kotlin.jni.worklets.Serializable
+import expo.modules.kotlin.jni.worklets.Worklet
 import expo.modules.kotlin.records.Record
 import expo.modules.kotlin.records.RecordTypeConverter
 import expo.modules.kotlin.sharedobjects.SharedObject
@@ -38,6 +42,8 @@ import expo.modules.kotlin.types.io.PathTypeConverter
 import expo.modules.kotlin.types.net.JavaURITypeConverter
 import expo.modules.kotlin.types.net.URLTypConverter
 import expo.modules.kotlin.types.net.UriTypeConverter
+import expo.modules.kotlin.types.worklets.SerializableTypeConverter
+import expo.modules.kotlin.types.worklets.WorkletTypeConverter
 import expo.modules.kotlin.views.ViewTypeConverter
 import java.io.File
 import java.net.URI
@@ -75,11 +81,15 @@ fun convert(value: Dynamic, type: KType): Any? {
 
 object TypeConverterProviderImpl : TypeConverterProvider {
   private val cachedConverters = createCachedConverters()
+  private val cachedPrimitiveArrayConverters = createCachedPrimitiveArrayConverters()
 
   private val cachedRecordConverters = mutableMapOf<KType, TypeConverter<*>>()
 
   private fun getCachedConverter(inputType: KType): TypeConverter<*>? {
     return cachedConverters[inputType.classifier]
+  }
+  private fun getCachedPrimitiveArrayConverter(inputType: KType): TypeConverter<*>? {
+    return cachedPrimitiveArrayConverters[inputType.classifier]
   }
 
   override fun obtainTypeConverter(type: KType): TypeConverter<*> {
@@ -100,8 +110,8 @@ object TypeConverterProviderImpl : TypeConverterProvider {
     val jClass = kClass.java
 
     if (jClass.isArray || Array::class.java.isAssignableFrom(jClass)) {
-      return if (isPrimitiveArray(jClass)) {
-        PrimitiveArrayTypeConverter(this, type)
+      return if (isPrimitiveArray(type, jClass)) {
+        getCachedPrimitiveArrayConverter(type) ?: throw MissingTypeConverter(type)
       } else {
         ArrayTypeConverter(this, type)
       }
@@ -155,6 +165,10 @@ object TypeConverterProviderImpl : TypeConverterProvider {
       return JavaScriptFunctionTypeConverter<Any>(type)
     }
 
+    if (ValueOrUndefined::class.java.isAssignableFrom(jClass)) {
+      return ValueOrUndefinedTypeConverter(this, type)
+    }
+
     return handelEither(type, jClass)
       ?: throw MissingTypeConverter(type)
   }
@@ -191,6 +205,8 @@ object TypeConverterProviderImpl : TypeConverterProvider {
       ExpectedType(CppType.BOOLEAN)
     ) { it.asBoolean() }
 
+    val serializableTypeConverter = SerializableTypeConverter()
+
     val converters = mapOf(
       Int::class to intTypeConverter,
       java.lang.Integer::class to intTypeConverter,
@@ -218,46 +234,6 @@ object TypeConverterProviderImpl : TypeConverterProvider {
         ExpectedType(CppType.READABLE_MAP)
       ) { it.asMap() ?: throw DynamicCastException(ReadableMap::class) },
 
-      IntArray::class to createTrivialTypeConverter(
-        ExpectedType.forPrimitiveArray(CppType.INT)
-      ) {
-        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
-        IntArray(jsArray.size()) { index ->
-          jsArray.getInt(index)
-        }
-      },
-      LongArray::class to createTrivialTypeConverter(
-        ExpectedType.forPrimitiveArray(CppType.LONG)
-      ) {
-        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
-        LongArray(jsArray.size()) { index ->
-          jsArray.getDouble(index).toLong()
-        }
-      },
-      DoubleArray::class to createTrivialTypeConverter(
-        ExpectedType.forPrimitiveArray(CppType.DOUBLE)
-      ) {
-        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
-        DoubleArray(jsArray.size()) { index ->
-          jsArray.getDouble(index)
-        }
-      },
-      FloatArray::class to createTrivialTypeConverter(
-        ExpectedType.forPrimitiveArray(CppType.FLOAT)
-      ) {
-        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
-        FloatArray(jsArray.size()) { index ->
-          jsArray.getDouble(index).toFloat()
-        }
-      },
-      BooleanArray::class to createTrivialTypeConverter(
-        ExpectedType.forPrimitiveArray(CppType.BOOLEAN)
-      ) {
-        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
-        BooleanArray(jsArray.size()) { index ->
-          jsArray.getBoolean(index)
-        }
-      },
       ByteArray::class to ByteArrayTypeConverter(),
 
       JavaScriptValue::class to createTrivialTypeConverter(
@@ -266,6 +242,15 @@ object TypeConverterProviderImpl : TypeConverterProvider {
       JavaScriptObject::class to createTrivialTypeConverter(
         ExpectedType(CppType.JS_OBJECT)
       ),
+      JavaScriptArrayBuffer::class to createTrivialTypeConverter(
+        ExpectedType(CppType.JS_ARRAY_BUFFER)
+      ),
+      NativeArrayBuffer::class to createTrivialTypeConverter(
+        ExpectedType(CppType.NATIVE_ARRAY_BUFFER)
+      ),
+
+      Serializable::class to serializableTypeConverter,
+      Worklet::class to WorkletTypeConverter(serializableTypeConverter),
 
       Int8Array::class to Int8ArrayTypeConverter(),
       Int16Array::class to Int16ArrayTypeConverter(),
@@ -306,6 +291,51 @@ object TypeConverterProviderImpl : TypeConverterProvider {
     }
 
     return converters
+  }
+
+  private fun createCachedPrimitiveArrayConverters(): Map<KClass<*>, TypeConverter<*>> {
+    return mapOf(
+      IntArray::class to createTrivialTypeConverter(
+        ExpectedType.forPrimitiveArray(CppType.INT)
+      ) {
+        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
+        IntArray(jsArray.size()) { index ->
+          jsArray.getInt(index)
+        }
+      },
+      LongArray::class to createTrivialTypeConverter(
+        ExpectedType.forPrimitiveArray(CppType.LONG)
+      ) {
+        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
+        LongArray(jsArray.size()) { index ->
+          jsArray.getDouble(index).toLong()
+        }
+      },
+      DoubleArray::class to createTrivialTypeConverter(
+        ExpectedType.forPrimitiveArray(CppType.DOUBLE)
+      ) {
+        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
+        DoubleArray(jsArray.size()) { index ->
+          jsArray.getDouble(index)
+        }
+      },
+      FloatArray::class to createTrivialTypeConverter(
+        ExpectedType.forPrimitiveArray(CppType.FLOAT)
+      ) {
+        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
+        FloatArray(jsArray.size()) { index ->
+          jsArray.getDouble(index).toFloat()
+        }
+      },
+      BooleanArray::class to createTrivialTypeConverter(
+        ExpectedType.forPrimitiveArray(CppType.BOOLEAN)
+      ) {
+        val jsArray = it.asArray() ?: throw DynamicCastException(ReadableArray::class)
+        BooleanArray(jsArray.size()) { index ->
+          jsArray.getBoolean(index)
+        }
+      }
+    )
   }
 }
 

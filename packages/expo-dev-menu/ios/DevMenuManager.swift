@@ -5,6 +5,7 @@ import EXDevMenuInterface
 import EXManifests
 import CoreGraphics
 import CoreMedia
+import Combine
 
 class Dispatch {
   static func mainSync<T>(_ closure: () -> T) -> T {
@@ -66,47 +67,95 @@ open class DevMenuManager: NSObject {
    */
   var window: DevMenuWindow?
 
-  /**
-   `DevMenuAppInstance` instance that is responsible for initializing and managing React Native context for the dev menu.
-   */
-  lazy var appInstance: DevMenuAppInstance = DevMenuAppInstance(manager: self)
-
   var currentScreen: String?
 
-  /**
-   For backwards compatibility in projects that call this method from AppDelegate
-   */
-  @available(*, deprecated, message: "Manual setup of DevMenuManager in AppDelegate is deprecated in favor of automatic setup with Expo Modules")
-  @objc
-  public static func configure(withBridge bridge: AnyObject) { }
+  weak var hostDelegate: DevMenuHostDelegate?
 
   @objc
-  public var currentBridge: RCTBridge? {
+  public private(set) var currentBridge: RCTBridge? {
     didSet {
-      guard self.canLaunchDevMenuOnStart && (DevMenuPreferences.showsAtLaunch || self.shouldShowOnboarding()), let bridge = currentBridge else {
-        return
-      }
+      updateAutoLaunchObserver()
 
-      // When using the proxy bridge isLoading is always false, so always add the ContentDidAppearNotification observer
-      if bridge.isLoading || bridge.isProxy() {
-        NotificationCenter.default.addObserver(self, selector: #selector(DevMenuManager.autoLaunch), name: DevMenuViewController.ContentDidAppearNotification, object: nil)
-      } else {
-        autoLaunch()
+      if let currentBridge {
+        DispatchQueue.main.async {
+          self.disableRNDevMenuHoykeys(for: currentBridge)
+        }
       }
     }
   }
-  @objc
-  public var currentManifest: Manifest?
+
+  private let manifestSubject = PassthroughSubject<Void, Never>()
+  public var manifestPublisher: AnyPublisher<Void, Never> {
+    manifestSubject.eraseToAnyPublisher()
+  }
 
   @objc
-  public var currentManifestURL: URL?
+  public private(set) var currentManifest: Manifest? {
+    didSet {
+      manifestSubject.send()
+    }
+  }
+
+  @objc
+  public private(set) var currentManifestURL: URL? {
+    didSet {
+      manifestSubject.send()
+    }
+  }
+
+  @objc
+  public func setDelegate(_ delegate: DevMenuHostDelegate?) {
+    hostDelegate = delegate
+  }
+
+  @objc
+  public func updateCurrentBridge(_ bridge: RCTBridge?) {
+    currentBridge = bridge
+  }
+
+  @objc
+  public func updateCurrentManifest(_ manifest: Manifest?, manifestURL: URL?) {
+    currentManifest = manifest
+    currentManifestURL = manifestURL
+  }
 
   @objc
   public func autoLaunch(_ shouldRemoveObserver: Bool = true) {
+    // swiftlint:disable notification_center_detachment
     NotificationCenter.default.removeObserver(self)
+    // swiftlint:enable notification_center_detachment
 
     DispatchQueue.main.async {
       self.openMenu()
+    }
+  }
+
+  func updateAutoLaunchObserver() {
+    // swiftlint:disable notification_center_detachment
+    NotificationCenter.default.removeObserver(self)
+    // swiftlint:enable notification_center_detachment
+
+    // swiftlint:disable legacy_objc_type
+    if canLaunchDevMenuOnStart && currentBridge != nil && (DevMenuPreferences.showsAtLaunch || shouldShowOnboarding()) {
+      NotificationCenter.default.addObserver(self, selector: #selector(DevMenuManager.autoLaunch), name: NSNotification.Name.RCTContentDidAppear, object: nil)
+    }
+    // swiftlint:enable legacy_objc_type
+  }
+
+  private func disableRNDevMenuHoykeys(for bridge: RCTBridge) {
+    if let devMenu = bridge.devMenu {
+      devMenu.hotkeysEnabled = false
+
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        if DevMenuPreferences.keyCommandsEnabled {
+          DevMenuKeyCommandsInterceptor.isInstalled = false
+          DevMenuKeyCommandsInterceptor.isInstalled = true
+        }
+      }
+    } else {
+      DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+        self.disableRNDevMenuHoykeys(for: bridge)
+      }
     }
   }
 
@@ -119,12 +168,20 @@ open class DevMenuManager: NSObject {
     self.readAutoLaunchDisabledState()
   }
 
+  deinit {
+    NotificationCenter.default.removeObserver(self)
+  }
+
   /**
    Whether the dev menu window is visible on the device screen.
    */
   @objc
   public var isVisible: Bool {
+#if !os(macOS)
     return Dispatch.mainSync { !(window?.isHidden ?? true) }
+#else
+    return window?.isVisible ?? false
+#endif
   }
 
   /**
@@ -139,7 +196,6 @@ open class DevMenuManager: NSObject {
   @objc
   @discardableResult
   public func openMenu() -> Bool {
-    appInstance.sendOpenEvent()
     return openMenu(nil)
   }
 
@@ -151,10 +207,10 @@ open class DevMenuManager: NSObject {
   public func closeMenu(completion: (() -> Void)? = nil) -> Bool {
     if isVisible {
       if Thread.isMainThread {
-        window?.closeBottomSheet(completion: completion)
+        window?.closeBottomSheet(completion)
       } else {
         DispatchQueue.main.async { [self] in
-          window?.closeBottomSheet(completion: completion)
+          window?.closeBottomSheet(completion)
         }
       }
       return true
@@ -182,6 +238,32 @@ open class DevMenuManager: NSObject {
   }
 
   @objc
+  public var canNavigateHome: Bool {
+    guard let delegate = hostDelegate else {
+      return false
+    }
+    return delegate.responds(to: #selector(DevMenuHostDelegate.devMenuNavigateHome))
+  }
+
+  @objc
+  public func navigateHome() {
+    guard let delegate = hostDelegate,
+      delegate.responds(to: #selector(DevMenuHostDelegate.devMenuNavigateHome)) else {
+      return
+    }
+
+    let action: () -> Void = {
+      delegate.devMenuNavigateHome?()
+    }
+
+    if Thread.isMainThread {
+      action()
+    } else {
+      DispatchQueue.main.async(execute: action)
+    }
+  }
+
+  @objc
   public func setCurrentScreen(_ screenName: String?) {
     currentScreen = screenName
   }
@@ -192,11 +274,13 @@ open class DevMenuManager: NSObject {
       return
     }
 
-    let eventDispatcher = bridge.moduleRegistry.module(forName: "EventDispatcher") as? RCTEventDispatcher
-    eventDispatcher?.sendDeviceEvent(withName: eventName, body: data)
+    if let eventDispatcher = bridge.moduleRegistry.module(forName: "EventDispatcher") as? NSObject {
+      let selector = NSSelectorFromString("sendDeviceEventWithName:body:")
+      if eventDispatcher.responds(to: selector) {
+        eventDispatcher.perform(selector, with: eventName, with: data)
+      }
+    }
   }
-
-  // MARK: delegate stubs
 
   /**
    Returns a bool value whether the dev menu can change its visibility.
@@ -207,6 +291,12 @@ open class DevMenuManager: NSObject {
       return false
     }
 
+    // Don't allow dev menu to open when there's no active React Native bridge
+    // This prevents the menu from appearing when the dev-launcher UI is visible
+    if visible && currentBridge == nil {
+      return false
+    }
+
     return true
   }
 
@@ -214,7 +304,17 @@ open class DevMenuManager: NSObject {
    Returns bool value whether the onboarding view should be displayed by the dev menu view.
    */
   func shouldShowOnboarding() -> Bool {
-    return !DevMenuPreferences.isOnboardingFinished
+    return !isOnboardingFinished
+  }
+
+  @objc
+  public var isOnboardingFinished: Bool {
+    return DevMenuPreferences.isOnboardingFinished
+  }
+
+  @objc
+  public func setOnboardingFinished(_ finished: Bool) {
+    DevMenuPreferences.isOnboardingFinished = finished
   }
 
   func readAutoLaunchDisabledState() {
@@ -227,25 +327,32 @@ open class DevMenuManager: NSObject {
     }
   }
 
+#if !os(macOS)
   var userInterfaceStyle: UIUserInterfaceStyle {
     return UIUserInterfaceStyle.unspecified
   }
-
-  // MARK: private
+#endif
 
   private func setVisibility(_ visible: Bool, screen: String? = nil) -> Bool {
     if !canChangeVisibility(to: visible) {
       return false
     }
     if visible {
-      guard currentBridge != nil else {
-        debugPrint("DevMenuManager: There is no bridge to render DevMenu.")
-        return false
-      }
       setCurrentScreen(screen)
-      DispatchQueue.main.async { self.window?.makeKeyAndVisible() }
+      DispatchQueue.main.async {
+#if os(macOS)
+        self.window?.makeKeyAndOrderFront(nil)
+#else
+        if self.window?.windowScene == nil {
+          let windowScene = UIApplication.shared.connectedScenes
+            .first(where: { $0.activationState == .foregroundActive }) as? UIWindowScene
+          self.window?.windowScene = windowScene
+        }
+        self.window?.makeKeyAndVisible()
+#endif
+      }
     } else {
-      DispatchQueue.main.async { self.window?.isHidden = true }
+      DispatchQueue.main.async { self.window?.closeBottomSheet(nil) }
     }
     return true
   }
@@ -260,48 +367,26 @@ open class DevMenuManager: NSObject {
     return EXDevMenuDevSettings.getDevSettings()
   }
 
-  private static var fontsWereLoaded = false
-
-  @objc
-  public func loadFonts() {
-    if DevMenuManager.fontsWereLoaded {
-       return
-    }
-    DevMenuManager.fontsWereLoaded = true
-
-    let fonts = [
-      "Inter-Black",
-      "Inter-ExtraBold",
-      "Inter-Bold",
-      "Inter-SemiBold",
-      "Inter-Medium",
-      "Inter-Regular",
-      "Inter-Light",
-      "Inter-ExtraLight",
-      "Inter-Thin"
-    ]
-
-    for font in fonts {
-      let path = DevMenuUtils.resourcesBundle()?.path(forResource: font, ofType: "otf")
-      let data = FileManager.default.contents(atPath: path!)
-      let provider = CGDataProvider(data: data! as CFData)
-      let font = CGFont(provider!)
-      var error: Unmanaged<CFError>?
-      CTFontManagerRegisterGraphicsFont(font!, &error)
-    }
-  }
-
   // captures any callbacks that are registered via the `registerDevMenuItems` module method
   // it is set and unset by the public facing `DevMenuModule`
   // when the DevMenuModule instance is unloaded (e.g between app loads) the callback list is reset to an empty array
-  public var registeredCallbacks: [Callback] = []
+  private let callbacksSubject = PassthroughSubject<[Callback], Never>()
+  public var callbacksPublisher: AnyPublisher<[Callback], Never> {
+    callbacksSubject.eraseToAnyPublisher()
+  }
+
+  public var registeredCallbacks: [Callback] = [] {
+    didSet {
+      callbacksSubject.send(registeredCallbacks)
+    }
+  }
 
   func getDevToolsDelegate() -> DevMenuDevOptionsDelegate? {
-    guard let bridge = currentBridge else {
+    guard let currentBridge else {
       return nil
     }
 
-    let devDelegate = DevMenuDevOptionsDelegate(forBridge: bridge)
+    let devDelegate = DevMenuDevOptionsDelegate(forBridge: currentBridge)
     guard devDelegate.devSettings != nil else {
       return nil
     }

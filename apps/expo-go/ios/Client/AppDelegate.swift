@@ -1,11 +1,11 @@
 // Copyright 2015-present 650 Industries. All rights reserved.
 
 import Expo
+import React
 import FirebaseCore
 import ReactAppDependencyProvider
 
-
-@UIApplicationMain
+@main
 class AppDelegate: ExpoAppDelegate {
   var rootViewController: EXRootViewController?
   var window: UIWindow?
@@ -20,7 +20,6 @@ class AppDelegate: ExpoAppDelegate {
 
     reactNativeDelegate = delegate
     reactNativeFactory = factory
-    bindReactNativeFactory(factory)
 
     FirebaseApp.configure()
 

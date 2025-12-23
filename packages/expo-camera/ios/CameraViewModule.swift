@@ -148,6 +148,7 @@ public final class CameraViewModule: Module, ScannerResultHandler {
       }
 
       Prop("barcodeScannerEnabled") { (view, scanBarcodes: Bool?) in
+#if canImport(ZXingObjC)
         if let scanBarcodes, view.isScanningBarcodes != scanBarcodes {
           view.isScanningBarcodes = scanBarcodes
           return
@@ -155,12 +156,17 @@ public final class CameraViewModule: Module, ScannerResultHandler {
         if scanBarcodes == nil && view.isScanningBarcodes != false {
           view.isScanningBarcodes = false
         }
+#endif
       }
 
       Prop("barcodeScannerSettings") { (view, settings: BarcodeSettings?) in
+#if canImport(ZXingObjC)
         if let settings {
           view.setBarcodeScannerSettings(settings: settings)
         }
+#else
+        self.appContext?.jsLogger.warn("Barcode scanning has been disabled")
+#endif
       }
 
       Prop("mute") { (view, muted: Bool?) in
@@ -186,6 +192,16 @@ public final class CameraViewModule: Module, ScannerResultHandler {
         }
         if quality == nil && view.videoQuality != .video1080p {
           view.videoQuality = .video1080p
+        }
+      }
+
+      Prop("videoStabilizationMode") { (view, mode: VideoStabilizationMode?) in
+        if let mode, view.videoStabilizationMode != mode {
+          view.videoStabilizationMode = mode
+          return
+        }
+        if mode == nil && view.videoStabilizationMode != .auto {
+          view.videoStabilizationMode = .auto
         }
       }
 
@@ -239,7 +255,7 @@ public final class CameraViewModule: Module, ScannerResultHandler {
         view.pausePreview()
       }
 
-      AsyncFunction("getAvailablePictureSizes") { (_: String?) in
+      AsyncFunction("getAvailablePictureSizes") {
         return PictureSize.allCases.map {
           $0.rawValue
         }
@@ -249,12 +265,25 @@ public final class CameraViewModule: Module, ScannerResultHandler {
         view.getAvailableLenses()
       }
 
+      AsyncFunction("takePictureRef") { (view, options: TakePictureOptions) -> PictureRef in
+        #if targetEnvironment(simulator)
+        return try takePictureRefForSimulator(self.appContext, view, options)
+        #else
+        return try await view.takePictureRef(options: options)
+        #endif
+      }
+
       AsyncFunction("takePicture") { (view, options: TakePictureOptions, promise: Promise) in
         #if targetEnvironment(simulator) // simulator
         try takePictureForSimulator(self.appContext, view, options, promise)
-        #else // not simulator
+        #else
         Task {
-          await view.takePicture(options: options, promise: promise)
+          do {
+            let result = try await view.takePicturePromise(options: options)
+            promise.resolve(result)
+          } catch {
+            promise.reject(error)
+          }
         }
         #endif
       }
@@ -287,12 +316,12 @@ public final class CameraViewModule: Module, ScannerResultHandler {
     }
 
     Class("Picture", PictureRef.self) {
-      Property("width") { (image: PictureRef) -> Int in
-        return image.ref.cgImage?.width ?? 0
+      Property("width") { (image: PictureRef) -> CGFloat in
+        return image.ref.size.width
       }
 
-      Property("height") { (image: PictureRef) -> Int in
-        return image.ref.cgImage?.height ?? 0
+      Property("height") { (image: PictureRef) -> CGFloat in
+        return image.ref.size.height
       }
 
       AsyncFunction("savePictureAsync") { (image: PictureRef, options: SavePictureOptions?) -> [String: Any?] in
@@ -366,7 +395,7 @@ public final class CameraViewModule: Module, ScannerResultHandler {
   @available(iOS 16.0, *)
   @MainActor
   private func launchScanner(with options: VisionScannerOptions?) {
-    let symbologies = options?.toSymbology() ?? [.qr]
+    let symbologies = options?.toSymbology() ?? []
     let controller = DataScannerViewController(
       recognizedDataTypes: [.barcode(symbologies: symbologies)],
       isPinchToZoomEnabled: options?.isPinchToZoomEnabled ?? true,

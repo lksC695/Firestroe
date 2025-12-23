@@ -75,8 +75,10 @@ export default function ExpoImage({
   style,
   nativeViewRef,
   accessibilityLabel,
+  alt,
   tintColor,
   containerViewRef,
+  draggable,
   ...props
 }: ImageNativeProps) {
   const imagePlaceholderContentFit = placeholderContentFit || 'scale-down';
@@ -114,10 +116,11 @@ export default function ExpoImage({
               contentPosition={{ left: '50%', top: '50%' }}
               hashPlaceholderContentPosition={contentPosition}
               hashPlaceholderStyle={imageHashStyle}
-              accessibilityLabel={accessibilityLabel}
+              accessibilityLabel={accessibilityLabel ?? alt}
               cachePolicy={cachePolicy}
               priority={priority}
               tintColor={tintColor}
+              draggable={draggable}
             />
           ),
       ]
@@ -153,6 +156,7 @@ export default function ExpoImage({
           hashPlaceholderStyle={imageHashStyle}
           accessibilityLabel={accessibilityLabel}
           tintColor={tintColor}
+          draggable={draggable}
         />
       ),
   ];

@@ -10,7 +10,6 @@ import {
   isDeviceBootedAsync,
   isPackageInstalledAsync,
   launchActivityAsync,
-  openAppIdAsync,
   sanitizeAdbDeviceName,
   openUrlAsync,
 } from '../adb';
@@ -29,7 +28,7 @@ const device = asDevice({ name: 'Pixel 5', pid: '123' });
 describe(openUrlAsync, () => {
   it(`escapes & in the url`, async () => {
     await openUrlAsync(device, { url: 'acme://foo?bar=1&baz=2' });
-    expect(getServer().runAsync).toBeCalledWith([
+    expect(getServer().runAsync).toHaveBeenCalledWith([
       '-s',
       '123',
       'shell',
@@ -60,7 +59,7 @@ describe(launchActivityAsync, () => {
     await launchActivityAsync(device, {
       launchActivity: 'dev.bacon.app/.MainActivity',
     });
-    expect(getServer().runAsync).toBeCalledWith([
+    expect(getServer().runAsync).toHaveBeenCalledWith([
       '-s',
       '123',
       'shell',
@@ -78,7 +77,7 @@ describe(launchActivityAsync, () => {
       launchActivity: 'dev.expo.custom.appid/dev.bacon.app.MainActivity',
       url: 'exp+expo-test://expo-development-client/?url=http%3A%2F%2F192.168.86.186%3A8081',
     });
-    expect(getServer().runAsync).toBeCalledWith([
+    expect(getServer().runAsync).toHaveBeenCalledWith([
       '-s',
       '123',
       'shell',
@@ -106,7 +105,7 @@ describe(isPackageInstalledAsync, () => {
         ].join('\n')
       );
     expect(await isPackageInstalledAsync(device, 'com.google.android.youtube')).toBe(true);
-    expect(getServer().runAsync).toBeCalledWith([
+    expect(getServer().runAsync).toHaveBeenCalledWith([
       '-s',
       '123',
       'shell',
@@ -124,19 +123,6 @@ describe(isPackageInstalledAsync, () => {
   });
 });
 
-describe(openAppIdAsync, () => {
-  it(`asserts that the app does not exist`, async () => {
-    jest
-      .mocked(getServer().runAsync)
-      .mockResolvedValueOnce('Error: Activity not started, unable to resolve Intent');
-    await expect(
-      openAppIdAsync(device, {
-        applicationId: 'dev.bacon.app',
-      })
-    ).rejects.toThrow(CommandError);
-  });
-});
-
 describe(getAdbNameForDeviceIdAsync, () => {
   it(`returns a device name`, async () => {
     jest.mocked(getServer().runAsync).mockResolvedValueOnce(['Pixel_4_XL_API_30', 'OK'].join('\n'));
@@ -150,9 +136,9 @@ describe(getAdbNameForDeviceIdAsync, () => {
       .mocked(getServer().runAsync)
       .mockResolvedValueOnce('error: could not connect to TCP port 55534: Connection refused');
 
-    await expect(
-      getAdbNameForDeviceIdAsync(asDevice({ pid: 'emulator-5554' }))
-    ).rejects.toThrowError(CommandError);
+    await expect(getAdbNameForDeviceIdAsync(asDevice({ pid: 'emulator-5554' }))).rejects.toThrow(
+      CommandError
+    );
   });
 });
 

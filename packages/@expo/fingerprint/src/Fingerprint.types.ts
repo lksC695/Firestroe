@@ -64,6 +64,7 @@ export type FingerprintDiffItem =
     };
 
 export type Platform = 'android' | 'ios';
+export type ProjectWorkflow = 'generic' | 'managed' | 'unknown';
 
 export interface Options {
   /**
@@ -210,6 +211,12 @@ export interface HashSourceFile {
    * Reasons of this source coming from.
    */
   reasons: string[];
+
+  /**
+   * Override key for hashing.
+   * Without this key, the `filePath` is used as the hash key.
+   */
+  overrideHashKey?: string;
 }
 
 export interface HashSourceDir {
@@ -220,6 +227,12 @@ export interface HashSourceDir {
    * Reasons of this source coming from.
    */
   reasons: string[];
+
+  /**
+   * Override key for hashing.
+   * Without this key, the `filePath` is used as the hash key.
+   */
+  overrideHashKey?: string;
 }
 
 export interface HashSourceContents {
@@ -297,6 +310,11 @@ export type NormalizedOptions = Omit<Options, 'ignorePaths'> & {
    * A ignore pattern list specific for dir matching. It is built by `ignorePathMatchObjects` in runtime.
    */
   ignoreDirMatchObjects: Minimatch[];
+
+  /**
+   * Indicate whether the project is using CNG for each platform.
+   */
+  useCNGForPlatforms: Record<Platform, boolean>;
 };
 
 //#endregion

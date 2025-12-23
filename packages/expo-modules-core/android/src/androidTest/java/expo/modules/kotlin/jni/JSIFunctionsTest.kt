@@ -1,7 +1,7 @@
 package expo.modules.kotlin.jni
 
 import com.google.common.truth.Truth
-import expo.modules.kotlin.RuntimeContext
+import expo.modules.kotlin.runtime.Runtime
 import expo.modules.kotlin.apifeatures.EitherType
 import expo.modules.kotlin.exception.CodedException
 import expo.modules.kotlin.exception.JavaScriptEvaluateException
@@ -440,6 +440,26 @@ class JSIFunctionsTest {
   }
 
   @Test
+  fun array_array_array_int_should_be_convertible() = withSingleModule({
+    Function("arrayArrayArrayInt") { a: Array<Array<Array<Int>>> -> a }
+  }) {
+    val array = call("arrayArrayArrayInt", "[[[1, 2, 3]]]").getArray()
+    Truth.assertThat(array.size).isEqualTo(1)
+    val innerArray = array[0].getArray()
+    Truth.assertThat(innerArray.size).isEqualTo(1)
+    val intArray = innerArray[0].getArray()
+    Truth.assertThat(intArray.size).isEqualTo(3)
+
+    val e1 = intArray[0].getInt()
+    val e2 = intArray[1].getInt()
+    val e3 = intArray[2].getInt()
+
+    Truth.assertThat(e1).isEqualTo(1)
+    Truth.assertThat(e2).isEqualTo(2)
+    Truth.assertThat(e3).isEqualTo(3)
+  }
+
+  @Test
   fun nullable_string_array_array_should_be_convertible() = withSingleModule({
     Function("nullableStringArrayArray") { a: Array<Array<String?>> -> a }
   }) {
@@ -573,12 +593,12 @@ class JSIFunctionsTest {
     }
   }
 
-  private class MySharedRef(value: Int, runtimeContext: RuntimeContext) : SharedRef<Int>(value, runtimeContext)
+  private class MySharedRef(value: Int, runtime: Runtime) : SharedRef<Int>(value, runtime)
 
   @Test
   fun shared_ref_should_be_convertible() = withSingleModule({
     Function("createRef") {
-      MySharedRef(123, module!!.runtimeContext)
+      MySharedRef(123, module!!.runtime)
     }
     Function("getRef") { ref: MySharedRef ->
       ref.ref

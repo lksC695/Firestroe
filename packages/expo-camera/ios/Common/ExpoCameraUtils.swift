@@ -213,9 +213,12 @@ struct ExpoCameraUtils {
     return CGImageDestinationFinalize(destinationCGImageRef) ? processedImageData as Data : nil
   }
 
-  static func updateExif(metadata: NSDictionary, with additionalData: [String: Any]) -> NSMutableDictionary {
-    let mutableMetadata = NSMutableDictionary(dictionary: metadata)
-    mutableMetadata.addEntries(from: additionalData)
+  static func updateExif(metadata: [String: Any], with additionalData: [String: Any]) -> [String: Any] {
+    var mutableMetadata = metadata
+
+    for (key, value) in additionalData {
+      mutableMetadata[key] = value
+    }
 
     if let gps = mutableMetadata[kCGImagePropertyGPSDictionary as String] as? [String: Any] {
       for (gpsKey, gpsValue) in gps {
@@ -246,8 +249,8 @@ struct ExpoCameraUtils {
     }
 
     result["url"] = fileUrl.absoluteString
-    result["width"] = image.cgImage?.width ?? 0
-    result["height"] = image.cgImage?.height ?? 0
+    result["width"] = image.size.width
+    result["height"] = image.size.height
     result["base64"] = options.base64 ? data.base64EncodedString() : nil
 
     do {

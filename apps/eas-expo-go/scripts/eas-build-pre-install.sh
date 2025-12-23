@@ -15,19 +15,14 @@ fi
 if [ "$EAS_BUILD_PLATFORM" = "android" ]; then
   sudo apt-get -y update
   sudo apt-get -y install ruby icu-devtools libicu-dev maven
-  sdkmanager "cmake;3.22.1"
+  sdkmanager "cmdline-tools;latest"
+  sdkmanager "cmake;3.30.5"
 elif [ "$EAS_BUILD_PLATFORM" = "ios" ]; then
   HOMEBREW_NO_AUTO_UPDATE=1 brew install cmake
 fi
 
 if [ "$EAS_BUILD_PROFILE" = "release-client" ] || [ "$EAS_BUILD_PROFILE" = "publish-client" ]; then
-  if [ "$EAS_BUILD_PLATFORM" = "android" ]; then
-    sudo apt-get -y update
-    sudo apt-get -y install git-crypt
-  elif [ "$EAS_BUILD_PLATFORM" = "ios" ]; then
-    HOMEBREW_NO_AUTO_UPDATE=1 brew install git-crypt
-  fi
-  git-crypt unlock $GIT_CRYPT_KEY
+  cp "$DECRYPTED_KEYS" "$ROOT_DIR/secrets/keys.json"
 fi
 
 cat << EOF > $ROOT_DIR/.gitmodules

@@ -2,7 +2,8 @@ package expo.modules.kotlin.sharedobjects
 
 import expo.modules.core.interfaces.DoNotStrip
 import expo.modules.kotlin.AppContext
-import expo.modules.kotlin.RuntimeContext
+import expo.modules.kotlin.runtime.Runtime
+import kotlin.reflect.KClass
 
 /**
  * Shared object (ref) that holds a strong reference to any native object. Allows passing references
@@ -11,8 +12,8 @@ import expo.modules.kotlin.RuntimeContext
 @DoNotStrip
 open class SharedRef<RefType>(
   val ref: RefType,
-  runtimeContext: RuntimeContext? = null
-) : SharedObject(runtimeContext) {
+  runtime: Runtime? = null
+) : SharedObject(runtime) {
   constructor(ref: RefType, appContext: AppContext) : this(ref, appContext.hostingRuntimeContext)
 
   /**
@@ -29,3 +30,6 @@ inline fun <reified RefType> SharedRef<*>.cast(): SharedRef<RefType>? {
 
   return null
 }
+
+fun KClass<*>.isSharedRefClass() =
+  SharedRef::class.java.isAssignableFrom(this.java)

@@ -3,8 +3,9 @@ var __importDefault = (this && this.__importDefault) || function (mod) {
     return (mod && mod.__esModule) ? mod : { "default": mod };
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.withAndroidDayNightTheme = exports.withAndroidQueries = exports.withAndroidCleartextTraffic = exports.withAndroidPurgeProguardRulesOnce = exports.withAndroidProguardRules = exports.withAndroidBuildProperties = void 0;
+exports.withAndroidSettingsGradle = exports.withAndroidDayNightTheme = exports.withAndroidQueries = exports.withAndroidCleartextTraffic = exports.withAndroidPurgeProguardRulesOnce = exports.withAndroidProguardRules = exports.withAndroidBuildProperties = void 0;
 exports.updateAndroidProguardRules = updateAndroidProguardRules;
+exports.updateAndroidSettingsGradle = updateAndroidSettingsGradle;
 const config_plugins_1 = require("expo/config-plugins");
 const fs_1 = __importDefault(require("fs"));
 const path_1 = __importDefault(require("path"));
@@ -12,15 +13,6 @@ const androidQueryUtils_1 = require("./androidQueryUtils");
 const fileContentsUtils_1 = require("./fileContentsUtils");
 const { createBuildGradlePropsConfigPlugin } = config_plugins_1.AndroidConfig.BuildProperties;
 exports.withAndroidBuildProperties = createBuildGradlePropsConfigPlugin([
-    {
-        propName: 'newArchEnabled',
-        propValueGetter: (config) => {
-            if (config.android?.newArchEnabled !== undefined) {
-                config_plugins_1.WarningAggregator.addWarningAndroid('withAndroidBuildProperties', 'android.newArchEnabled is deprecated, use app config `newArchEnabled` instead.', 'https://docs.expo.dev/versions/latest/config/app/#newarchenabled');
-            }
-            return config.android?.newArchEnabled?.toString();
-        },
-    },
     {
         propName: 'android.minSdkVersion',
         propValueGetter: (config) => config.android?.minSdkVersion?.toString(),
@@ -58,8 +50,8 @@ exports.withAndroidBuildProperties = createBuildGradlePropsConfigPlugin([
         propValueGetter: (config) => config.android?.packagingOptions?.doNotStrip?.join(','),
     },
     {
-        propName: 'android.enableProguardInReleaseBuilds',
-        propValueGetter: (config) => config.android?.enableProguardInReleaseBuilds?.toString(),
+        propName: 'android.enableMinifyInReleaseBuilds',
+        propValueGetter: (config) => config.android?.enableMinifyInReleaseBuilds?.toString(),
     },
     {
         propName: 'android.enableShrinkResourcesInReleaseBuilds',
@@ -72,6 +64,10 @@ exports.withAndroidBuildProperties = createBuildGradlePropsConfigPlugin([
     {
         propName: 'EX_DEV_CLIENT_NETWORK_INSPECTOR',
         propValueGetter: (config) => (config.android?.networkInspector ?? true).toString(),
+    },
+    {
+        propName: 'reactNativeReleaseLevel',
+        propValueGetter: (config) => config.android?.reactNativeReleaseLevel,
     },
     {
         propName: 'expo.useLegacyPackaging',
@@ -96,6 +92,23 @@ exports.withAndroidBuildProperties = createBuildGradlePropsConfigPlugin([
     {
         propName: 'android.enableBundleCompression',
         propValueGetter: (config) => config.android?.enableBundleCompression?.toString(),
+    },
+    {
+        propName: 'reactNativeArchitectures',
+        propValueGetter: (config) => config.android?.buildArchs?.join(','),
+    },
+    {
+        propName: 'exclusiveEnterpriseRepository',
+        propValueGetter: (config) => config.android?.exclusiveMavenMirror,
+    },
+    {
+        propName: 'hermesV1Enabled',
+        propValueGetter: (config) => {
+            if (config.android?.useHermesV1 && config.android?.buildReactNativeFromSource !== true) {
+                config_plugins_1.WarningAggregator.addWarningAndroid('withAndroidBuildProperties', 'Hermes V1 requires building React Native from source. Set `buildReactNativeFromSource` to `true` to enable it.');
+            }
+            return config.android?.useHermesV1?.toString();
+        },
     },
 ], 'withAndroidBuildProperties');
 /**
@@ -139,7 +152,7 @@ const withAndroidPurgeProguardRulesOnce = (config) => {
              * });
              * config = withBuildProperties(config as ExpoConfig, {
              *   android: {
-             *     enableProguardInReleaseBuilds: true,
+             *     enableMinifyInReleaseBuilds: true,
              *     extraProguardRules: "-keep class com.mycompany.** { *; }",
              *   },
              * });
@@ -247,3 +260,32 @@ const withAndroidDayNightTheme = (config, props) => {
     });
 };
 exports.withAndroidDayNightTheme = withAndroidDayNightTheme;
+const withAndroidSettingsGradle = (config, props) => {
+    return (0, config_plugins_1.withSettingsGradle)(config, (config) => {
+        config.modResults.contents = updateAndroidSettingsGradle({
+            contents: config.modResults.contents,
+            buildFromSource: props.android?.buildReactNativeFromSource ?? props.android?.buildFromSource,
+        });
+        return config;
+    });
+};
+exports.withAndroidSettingsGradle = withAndroidSettingsGradle;
+function updateAndroidSettingsGradle({ contents, buildFromSource, }) {
+    let newContents = contents;
+    if (buildFromSource === true) {
+        const addCodeBlock = [
+            '', // new line
+            'includeBuild(expoAutolinking.reactNative) {',
+            '  dependencySubstitution {',
+            '    substitute(module("com.facebook.react:react-android")).using(project(":packages:react-native:ReactAndroid"))',
+            '    substitute(module("com.facebook.react:react-native")).using(project(":packages:react-native:ReactAndroid"))',
+            '    substitute(module("com.facebook.react:hermes-android")).using(project(":packages:react-native:ReactAndroid:hermes-engine"))',
+            '    substitute(module("com.facebook.react:hermes-engine")).using(project(":packages:react-native:ReactAndroid:hermes-engine"))',
+            '  }',
+            '}',
+            '', // new line
+        ];
+        newContents += addCodeBlock.join('\n');
+    }
+    return newContents;
+}

@@ -1,3 +1,5 @@
+import { Picker as SwiftUIPicker, Host, Text as SwiftUIText } from '@expo/ui/swift-ui';
+import { fixedSize, pickerStyle, tag } from '@expo/ui/swift-ui/modifiers';
 import { Picker } from '@react-native-picker/picker';
 import * as Speech from 'expo-speech';
 import * as React from 'react';
@@ -42,14 +44,22 @@ const AmountControlButton: React.FunctionComponent<
   </TouchableOpacity>
 );
 
+const audioSessionOptions = [
+  { label: 'unspecified', value: undefined },
+  { label: 'false', value: false },
+  { label: 'true', value: true },
+];
+
 interface State {
   selectedExample: { language: string; text: string };
   inProgress: boolean;
   paused: boolean;
+  useApplicationAudioSession: boolean | undefined;
   pitch: number;
   rate: number;
   voiceList?: { name: string; identifier: string }[];
   voice?: string;
+  volume: number;
 }
 
 export default class TextToSpeechScreen extends React.Component<object, State> {
@@ -61,8 +71,10 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
     selectedExample: EXAMPLES[0],
     inProgress: false,
     paused: false,
+    useApplicationAudioSession: undefined,
     pitch: 1,
     rate: 0.75,
+    volume: 1.0,
   };
 
   async componentDidMount() {
@@ -71,7 +83,7 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
 
   render() {
     return (
-      <ScrollView style={styles.container}>
+      <ScrollView style={styles.container} contentContainerStyle={{ paddingBottom: 20 }}>
         <HeadingText>Select a phrase</HeadingText>
 
         <View style={styles.examplesContainer}>{EXAMPLES.map(this._renderExample)}</View>
@@ -96,15 +108,13 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
         )}
 
         {this.state.voiceList && (
-          <View>
-            <Picker
-              selectedValue={this.state.voice}
-              onValueChange={(voice) => this.setState({ voice })}>
-              {this.state.voiceList.map((voice) => (
-                <Picker.Item key={voice.identifier} label={voice.name} value={voice.identifier} />
-              ))}
-            </Picker>
-          </View>
+          <Picker
+            selectedValue={this.state.voice}
+            onValueChange={(voice) => this.setState({ voice })}>
+            {this.state.voiceList.map((voice) => (
+              <Picker.Item key={voice.identifier} label={voice.name} value={voice.identifier} />
+            ))}
+          </Picker>
         )}
 
         <Text style={styles.controlText}>Pitch: {this.state.pitch.toFixed(2)}</Text>
@@ -114,8 +124,6 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
             title="Increase"
             disabled={this.state.inProgress}
           />
-
-          <Text>/</Text>
 
           <AmountControlButton
             onPress={this._decreasePitch}
@@ -139,6 +147,49 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
             disabled={this.state.inProgress}
           />
         </View>
+
+        <Text style={styles.controlText}>Volume: {this.state.volume.toFixed(2)}</Text>
+        <View style={styles.controlRow}>
+          <AmountControlButton
+            onPress={this._increaseVolume}
+            title="Increase"
+            disabled={this.state.inProgress || this.state.volume >= 1.0}
+          />
+
+          <Text>/</Text>
+          <AmountControlButton
+            onPress={this._decreaseVolume}
+            title="Decrease"
+            disabled={this.state.inProgress || this.state.volume <= 0.0}
+          />
+        </View>
+        {Platform.OS === 'ios' && (
+          <>
+            <Text>useApplicationAudioSession</Text>
+            <View style={styles.controlRow}>
+              <Host matchContents>
+                <SwiftUIPicker
+                  modifiers={[pickerStyle('segmented'), fixedSize()]}
+                  selection={audioSessionOptions.findIndex(
+                    (option) => option.value === this.state.useApplicationAudioSession
+                  )}
+                  onSelectionChange={(selection) => {
+                    const index = typeof selection === 'number' ? selection : 0;
+                    const useApplicationAudioSession = audioSessionOptions[index].value;
+                    this.setState({
+                      useApplicationAudioSession,
+                    });
+                  }}>
+                  {audioSessionOptions.map((option, index) => (
+                    <SwiftUIText key={index} modifiers={[tag(index)]}>
+                      {option.label}
+                    </SwiftUIText>
+                  ))}
+                </SwiftUIPicker>
+              </Host>
+            </View>
+          </>
+        )}
       </ScrollView>
     );
   }
@@ -156,6 +207,8 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
       language: this.state.selectedExample.language,
       pitch: this.state.pitch,
       rate: this.state.rate,
+      volume: this.state.volume,
+      useApplicationAudioSession: this.state.useApplicationAudioSession,
       onStart: start,
       onDone: complete,
       onStopped: complete,
@@ -199,6 +252,13 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
     }));
   };
 
+  _increaseVolume = () => {
+    this.setState((state) => ({
+      ...state,
+      volume: Math.min(1.0, state.volume + 0.1),
+    }));
+  };
+
   _decreasePitch = () => {
     this.setState((state) => ({
       ...state,
@@ -210,6 +270,13 @@ export default class TextToSpeechScreen extends React.Component<object, State> {
     this.setState((state) => ({
       ...state,
       rate: state.rate - 0.1,
+    }));
+  };
+
+  _decreaseVolume = () => {
+    this.setState((state) => ({
+      ...state,
+      volume: Math.max(0.0, state.volume - 0.1),
     }));
   };
 
@@ -238,7 +305,6 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     padding: 10,
-    paddingBottom: 24,
   },
   separator: {
     height: 1,

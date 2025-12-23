@@ -7,15 +7,15 @@ class DevMenuDevOptionsDelegate {
   internal private(set) weak var devSettings: RCTDevSettings?
 
   #if DEBUG
-  internal private(set) weak var perfMonitor: RCTPerfMonitor?
+  internal private(set) weak var perfMonitor: NSObject?
   #endif
 
   internal init(forBridge bridge: RCTBridge) {
     self.bridge = bridge
     devSettings = bridge.module(forName: "DevSettings") as? RCTDevSettings
 
-    #if DEBUG
-    perfMonitor = bridge.module(forName: "PerfMonitor") as? RCTPerfMonitor
+    #if DEBUG && !os(macOS)
+    perfMonitor = bridge.module(forName: "PerfMonitor") as? NSObject
     #endif
   }
 
@@ -51,26 +51,34 @@ class DevMenuDevOptionsDelegate {
 
   internal func togglePerformanceMonitor() {
     #if DEBUG
-    guard let perfMonitor = perfMonitor else {
-      return
-    }
-
-    guard let devSettings = devSettings else {
+    guard let perfMonitor, let devSettings else {
       return
     }
 
     DispatchQueue.main.async {
+      let hide = NSSelectorFromString("hide")
+      let show = NSSelectorFromString("show")
+
       if devSettings.isPerfMonitorShown {
-        perfMonitor.hide()
+        if perfMonitor.responds(to: hide) {
+          perfMonitor.perform(hide)
+        }
       } else {
-        let devMenuWindow = DevMenuManager.shared.window
-        // RCTPerfMonitor adds its view to the window using RCTKeyWindow().
-        // The key window when the dev menu is shown is actually the DevMenuWindow.
-        // To prevent RCTPerfMonitor from adding its view to the incorrect window,
-        // we temporarily hide and resign the key status of the DevMenuWindow.
-        devMenuWindow?.isHidden = true
-        perfMonitor.show()
-        devMenuWindow?.isHidden = false
+        let devMenuManager = DevMenuManager.shared
+        let devMenuWindow = devMenuManager.window
+        let menuWasVisible = devMenuManager.isVisible
+
+        if menuWasVisible {
+          devMenuWindow?.isHidden = true
+        }
+
+        if perfMonitor.responds(to: show) {
+          perfMonitor.perform(show)
+        }
+
+        if menuWasVisible {
+          devMenuWindow?.isHidden = false
+        }
       }
       devSettings.isPerfMonitorShown = !devSettings.isPerfMonitorShown
     }

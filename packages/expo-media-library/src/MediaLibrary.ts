@@ -168,7 +168,8 @@ export type AssetInfo = Asset & {
 
 /**
  * Constants identifying specific variations of asset media, such as panorama or screenshot photos,
- * and time-lapse or high-frame-rate video. Maps to [these values](https://developer.apple.com/documentation/photokit/phassetmediasubtype#1603888).
+ * and time-lapse or high-frame-rate video. Maps to [`PHAssetMediaSubtype`](https://developer.apple.com/documentation/photokit/phassetmediasubtype#1603888).
+ * @platform ios
  * */
 export type MediaSubtype =
   | 'depthEffect'
@@ -178,7 +179,9 @@ export type MediaSubtype =
   | 'panorama'
   | 'screenshot'
   | 'stream'
-  | 'timelapse';
+  | 'timelapse'
+  | 'spatialMedia'
+  | 'videoCinematic';
 
 // @needsAudit
 export type MediaLibraryAssetInfoQueryOptions = {
@@ -307,6 +310,11 @@ export type AssetsOptions = {
    */
   mediaType?: MediaTypeValue[] | MediaTypeValue;
   /**
+   * An array of [MediaSubtype](#mediasubtype)s or a single `MediaSubtype`.
+   * @platform ios
+   */
+  mediaSubtypes?: MediaSubtype[] | MediaSubtype;
+  /**
    * `Date` object or Unix timestamp in milliseconds limiting returned assets only to those that
    * were created after this date.
    */
@@ -316,6 +324,13 @@ export type AssetsOptions = {
    * date.
    */
   createdBefore?: Date | number;
+  /**
+   * Whether to resolve full info for the assets during the query.
+   * This is useful to get the full EXIF data for images. It can fix the orientation of the image.
+   * @default false
+   * @platform android
+   */
+  resolveWithFullInfo?: boolean;
 };
 
 // @needsAudit
@@ -325,8 +340,10 @@ export type PagedInfo<T> = {
    */
   assets: T[];
   /**
-   * ID of the last fetched asset. It should be passed as `after` option in order to get the
-   * next page.
+   * A marker that indicates where the next page of results should start.
+   * On iOS, it is the ID of the last fetched asset.
+   * On Android, it is the index of the last fetched asset in the query results.
+   * This value should be passed as the `after` option to load the next page.
    */
   endCursor: string;
   /**
@@ -443,6 +460,8 @@ export async function isAvailableAsync(): Promise<boolean> {
  * @param writeOnly
  * @param granularPermissions - A list of [`GranularPermission`](#granularpermission) values. This parameter has an
  * effect only on Android 13 and newer. By default, `expo-media-library` will ask for all possible permissions.
+ *
+ * > When using granular permissions with a custom config plugin configuration, make sure that all the requested permissions are included in the plugin.
  * @return A promise that fulfils with [`PermissionResponse`](#permissionresponse) object.
  */
 export async function requestPermissionsAsync(
@@ -817,7 +836,17 @@ export async function getAssetsAsync(assetsOptions: AssetsOptions = {}): Promise
     throw new UnavailabilityError('MediaLibrary', 'getAssetsAsync');
   }
 
-  const { first, after, album, sortBy, mediaType, createdAfter, createdBefore } = assetsOptions;
+  const {
+    first,
+    after,
+    album,
+    sortBy,
+    mediaType,
+    createdAfter,
+    createdBefore,
+    mediaSubtypes,
+    resolveWithFullInfo,
+  } = assetsOptions;
 
   const options = {
     first: first == null ? 20 : first,
@@ -825,8 +854,10 @@ export async function getAssetsAsync(assetsOptions: AssetsOptions = {}): Promise
     album: getId(album),
     sortBy: arrayize(sortBy),
     mediaType: arrayize(mediaType || [MediaType.photo]),
+    mediaSubtypes: arrayize(mediaSubtypes),
     createdAfter: dateToNumber(createdAfter),
     createdBefore: dateToNumber(createdBefore),
+    resolveWithFullInfo: resolveWithFullInfo ?? false,
   };
 
   if (first != null && typeof options.first !== 'number') {

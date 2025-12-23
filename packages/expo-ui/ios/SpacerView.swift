@@ -3,18 +3,18 @@
 import SwiftUI
 import ExpoModulesCore
 
-internal final class SpacerViewProps: ExpoSwiftUI.ViewProps, CommonViewModifierProps {
-  @Field var fixedSize: Bool?
-  @Field var frame: FrameOptions?
-  @Field var padding: PaddingOptions?
+public final class SpacerViewProps: UIBaseViewProps {
   @Field var minLength: Double?
 }
 
-internal struct SpacerView: ExpoSwiftUI.View {
-  @ObservedObject var props: SpacerViewProps
+public struct SpacerView: ExpoSwiftUI.View {
+  @ObservedObject public var props: SpacerViewProps
 
-  var body: some View {
+  public init(props: SpacerViewProps) {
+    self.props = props
+  }
+
+  public var body: some View {
     Spacer(minLength: props.minLength.map { CGFloat($0) })
-      .modifier(CommonViewModifiers(props: props))
   }
 }

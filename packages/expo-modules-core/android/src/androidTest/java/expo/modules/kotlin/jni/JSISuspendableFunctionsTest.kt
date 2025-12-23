@@ -3,9 +3,8 @@
 package expo.modules.kotlin.jni
 
 import com.google.common.truth.Truth
-import expo.modules.kotlin.RuntimeContext
+import expo.modules.kotlin.runtime.Runtime
 import expo.modules.kotlin.exception.CodedException
-import expo.modules.kotlin.exception.JavaScriptEvaluateException
 import expo.modules.kotlin.functions.Coroutine
 import expo.modules.kotlin.jni.extensions.addSingleQuotes
 import expo.modules.kotlin.records.Field
@@ -198,7 +197,7 @@ class JSISuspendableFunctionsTest {
     Truth.assertThat(exception.message).contains("java.lang.IllegalStateException")
   }
 
-  @Test(expected = JavaScriptEvaluateException::class)
+  @Test(expected = PromiseException::class)
   fun should_throw_if_js_value_cannot_be_passed() = withSingleModule({
     AsyncFunction("f") Coroutine { _: Int -> }
   }) {
@@ -277,12 +276,12 @@ class JSISuspendableFunctionsTest {
     Truth.assertThat(e3).isEqualTo(3.0)
   }
 
-  private class MySharedRef(value: Int, runtimeContext: RuntimeContext) : SharedRef<Int>(value, runtimeContext)
+  private class MySharedRef(value: Int, runtime: Runtime) : SharedRef<Int>(value, runtime)
 
   @Test
   fun shared_ref_should_be_convertible() = withSingleModule({
     AsyncFunction("createRef") Coroutine { ->
-      MySharedRef(123, module!!.runtimeContext)
+      MySharedRef(123, module!!.runtime)
     }
     Function("getRef") { ref: MySharedRef ->
       ref.ref

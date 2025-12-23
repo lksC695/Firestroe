@@ -45,7 +45,7 @@ class KModuleEventEmitterWrapper(
   }
 
   private fun emitNative(eventName: String, eventBody: Map<String, Any?>?) {
-    val runtimeContext = moduleHolder.module.runtimeContext
+    val runtimeContext = moduleHolder.module.runtime
     val jsObject = moduleHolder.safeJSObject ?: return
     try {
       JNIUtils.emitEvent(jsObject, runtimeContext.jsiContext, eventName, eventBody)
@@ -95,16 +95,18 @@ open class KEventEmitterWrapper(
 
   override fun emit(viewId: Int, eventName: String, eventBody: WritableMap?, coalescingKey: Short?) {
     val context = reactContextHolder.get() ?: return
+    val uiEvent = UIEvent(surfaceId = -1, viewId, eventName, eventBody, coalescingKey)
     UIManagerHelper.getEventDispatcherForReactTag(context, viewId)
-      ?.dispatchEvent(UIEvent(surfaceId = -1, viewId, eventName, eventBody, coalescingKey))
+      ?.dispatchEvent(uiEvent)
   }
 
   override fun emit(view: View, eventName: String, eventBody: WritableMap?, coalescingKey: Short?) {
     val context = reactContextHolder.get() ?: return
     val surfaceId = UIManagerHelper.getSurfaceId(view)
     val viewId = view.id
+    val uiEvent = UIEvent(surfaceId, viewId, eventName, eventBody, coalescingKey)
     UIManagerHelper.getEventDispatcherForReactTag(context, view.id)
-      ?.dispatchEvent(UIEvent(surfaceId, viewId, eventName, eventBody, coalescingKey))
+      ?.dispatchEvent(uiEvent)
   }
 
   private class UIEvent(

@@ -1,6 +1,8 @@
 import { PermissionResponse } from 'expo-modules-core';
 export { PermissionResponse, PermissionStatus, PermissionHookOptions, PermissionExpiration, } from 'expo-modules-core';
 /**
+ * Options for specifying a particular instance of a recurring event.
+ * This type is used in various methods that operate on recurring events, such as updating or deleting a single occurrence or a set of future occurrences.
  * @platform ios
  */
 export type RecurringEventOptions = {
@@ -18,7 +20,7 @@ export type RecurringEventOptions = {
      */
     instanceStartDate?: string | Date;
 };
-type Organizer = {
+export type Organizer = {
     isCurrentUser: boolean;
     name?: string;
     role: string;
@@ -333,6 +335,12 @@ export type Reminder = {
      */
     dueDate?: string | Date;
     /**
+     * Indicates if the reminder has a time specified for the due date.
+     *
+     * @platform ios
+     */
+    allDay?: boolean;
+    /**
      * Indicates whether or not the task has been completed.
      */
     completed?: boolean;
@@ -585,7 +593,7 @@ export type DialogEventResult = {
     /**
      * The ID of the event that was created or edited. On Android, this is always `null`.
      *
-     * On iOS, this is a string when user confirms the creation or editing of an event. Otherwise, it's `null`.
+     * On iOS, this is a string when permissions are granted and user confirms the creation or editing of an event. Otherwise, it's `null`.
      * */
     id: string | null;
 };

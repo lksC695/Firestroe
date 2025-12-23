@@ -1,8 +1,9 @@
 import { requireNativeView } from 'expo';
-import { StyleProp, ViewStyle } from 'react-native';
+import { type SFSymbol } from 'sf-symbols-typescript';
 
-import { ViewEvent } from '../../types';
-import { Host } from '../Host';
+import { type ViewEvent } from '../../types';
+import { createViewModifierEventListener } from '../modifiers/utils';
+import { type CommonViewModifierProps } from '../types';
 
 /**
  * The role of the button.
@@ -12,35 +13,6 @@ import { Host } from '../Host';
  */
 export type ButtonRole = 'default' | 'cancel' | 'destructive';
 
-/**
- * The built-in button styles available on iOS.
- *
- * Common styles:
- * - `default` - The default system button style.
- * - `bordered` - A button with a light fill. On Android, equivalent to `FilledTonalButton`.
- * - `borderless` - A button with no background or border. On Android, equivalent to `TextButton`.
- * - `borderedProminent` - A bordered button with a prominent appearance.
- * - `plain` - A button with no border or background and a less prominent text.
- * macOS-only styles:
- * - `accessoryBar` - A button style for accessory bars.
- * - `accessoryBarAction` - A button style for accessory bar actions.
- * - `card` - A button style for cards.
- * - `link` - A button style for links.
- */
-export type ButtonVariant =
-  // Common
-  | 'default'
-  | 'bordered'
-  | 'plain'
-  // Apple-only
-  | 'borderedProminent'
-  | 'borderless'
-  // MacOS-only;
-  | 'accessoryBar'
-  | 'accessoryBarAction'
-  | 'card'
-  | 'link';
-
 export type ButtonProps = {
   /**
    * A callback that is called when the button is pressed.
@@ -48,89 +20,64 @@ export type ButtonProps = {
   onPress?: () => void;
   /**
    * A string describing the system image to display in the button.
-   * This is only used if `children` is a string.
-   * Uses Material Icons on Android and SF Symbols on iOS.
+   * Only used when `label` is provided.
    */
-  systemImage?: string;
+  systemImage?: SFSymbol;
   /**
-   * Indicated the role of the button.
-   * @platform ios
+   * Indicates the role of the button.
    */
   role?: ButtonRole;
   /**
-   * The button variant.
+   * The text label for the button. Use this for simple text buttons.
    */
-  variant?: ButtonVariant;
+  label?: string;
   /**
-   * The text or React node to display inside the button.
+   * Custom content for the button label. Use this for custom label views.
    */
-  children: string | React.ReactNode;
-  /**
-   * Button color.
-   */
-  color?: string;
-  /**
-   * Disabled state of the button.
-   */
-  disabled?: boolean;
-};
+  children?: React.ReactNode;
+} & CommonViewModifierProps;
 
-/**
- * @hidden
- */
-export type NativeButtonProps = Omit<
-  ButtonProps,
-  'role' | 'onPress' | 'children' | 'systemImage'
-> & {
-  buttonRole?: ButtonRole;
-  text: string | undefined;
-  systemImage?: string;
-} & ViewEvent<'onButtonPressed', void>;
+type NativeButtonProps = Omit<ButtonProps, 'onPress'> & ViewEvent<'onButtonPress', void>;
 
-// We have to work around the `role` and `onPress` props being reserved by React Native.
 const ButtonNativeView: React.ComponentType<NativeButtonProps> = requireNativeView(
   'ExpoUI',
   'Button'
 );
 
 /**
- * @hidden
- */
-export function transformButtonProps(
-  props: Omit<ButtonProps, 'children'>,
-  text: string | undefined
-): NativeButtonProps {
-  const { role, onPress, systemImage, ...restProps } = props;
-  return {
-    ...restProps,
-    text,
-    systemImage,
-    buttonRole: role,
-    onButtonPressed: onPress,
-  };
-}
-
-/**
- * `<Button>` component without a host view.
- * You should use this with a `Host` component in ancestor.
- */
-export function ButtonPrimitive(props: ButtonProps) {
-  const { children, ...restProps } = props;
-  const text = typeof children === 'string' ? children : undefined;
-  if (text !== undefined) {
-    return <ButtonNativeView {...transformButtonProps(restProps, text)} />;
-  }
-  return <ButtonNativeView {...transformButtonProps(restProps, text)}>{children}</ButtonNativeView>;
-}
-
-/**
  * Displays a native button component.
+ *
+ * @example
+ * ```tsx
+ * import { Button } from '@expo/ui/swift-ui';
+ * import { buttonStyle, controlSize, tint, disabled } from '@expo/ui/swift-ui/modifiers';
+ *
+ * <Button
+ *   role="destructive"
+ *   onPress={handlePress}
+ *   label="Delete"
+ *   modifiers={[
+ *     buttonStyle('bordered'),
+ *     controlSize('large'),
+ *     tint('#FF0000'),
+ *     disabled(true)
+ *   ]}
+ * />
+ * ```
  */
-export function Button(props: ButtonProps & { style?: StyleProp<ViewStyle> }) {
-  const useViewportSizeMeasurement = props.style == null;
+export function Button(props: ButtonProps) {
+  const { label, children, onPress, modifiers, ...restProps } = props;
+
+  const baseProps = {
+    ...restProps,
+    modifiers,
+    ...(modifiers ? createViewModifierEventListener(modifiers) : undefined),
+    onButtonPress: onPress,
+  };
+
   return (
-    <Host style={props.style} matchContents useViewportSizeMeasurement={useViewportSizeMeasurement}>
-      <ButtonPrimitive {...props} />
-    </Host>
+    <ButtonNativeView {...baseProps} label={label}>
+      {children}
+    </ButtonNativeView>
   );
 }

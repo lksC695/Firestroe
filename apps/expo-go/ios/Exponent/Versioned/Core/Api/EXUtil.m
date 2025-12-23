@@ -1,35 +1,8 @@
 // Copyright 2016-present 650 Industries. All rights reserved.
 
 #import "EXUtil.h"
-#import "EXScopedModuleRegistry.h"
-
-@interface EXUtil ()
-
-@property (nonatomic, weak) id<EXUtilService> kernelUtilService;
-
-@end
-
-EX_DEFINE_SCOPED_MODULE_GETTER(EXUtil, util)
 
 @implementation EXUtil
-
-EX_EXPORT_SCOPED_MODULE(ExponentUtil, UtilService);
-
-- (instancetype)initWithExperienceStableLegacyId:(NSString *)experienceStableLegacyId
-                                        scopeKey:(NSString *)scopeKey
-                                    easProjectId:(NSString *)easProjectId
-                           kernelServiceDelegate:(id<EXUtilService>)kernelServiceInstance
-                                          params:(NSDictionary *)params
-{
-  if (self = [super initWithExperienceStableLegacyId:experienceStableLegacyId
-                                            scopeKey:scopeKey
-                                        easProjectId:easProjectId
-                               kernelServiceDelegate:kernelServiceInstance
-                                              params:params]) {
-    _kernelUtilService = kernelServiceInstance;
-  }
-  return self;
-}
 
 + (NSString *)escapedResourceName:(NSString *)name
 {
@@ -38,6 +11,17 @@ EX_EXPORT_SCOPED_MODULE(ExponentUtil, UtilService);
   return [name stringByAddingPercentEncodingWithAllowedCharacters:allowedCharacters];
 }
 
++ (BOOL)isExcludedExpoHost:(NSString *)host
+{
+  NSArray *excludedHosts = @[
+    @"launch.expo.dev",
+    @"docs.expo.dev",
+    @"blog.expo.dev",
+    @"chat.expo.dev",
+    @"snack.expo.dev"
+  ];
+  return [excludedHosts containsObject:host];
+}
 
 + (BOOL)isExpoHostedUrl:(NSURL *)url
 {
@@ -47,6 +31,10 @@ EX_EXPORT_SCOPED_MODULE(ExponentUtil, UtilService);
 + (BOOL)isExpoHostedUrlComponents:(NSURLComponents *)components
 {
   if (components.host) {
+    if ([self isExcludedExpoHost:components.host]) {
+      return NO;
+    }
+    
     return [components.host isEqualToString:@"exp.host"] ||
       [components.host isEqualToString:@"expo.io"] ||
       [components.host isEqualToString:@"exp.direct"] ||
@@ -114,16 +102,6 @@ EX_EXPORT_SCOPED_MODULE(ExponentUtil, UtilService);
                            alpha:1.0f];
   }
   return nil;
-}
-
-- (UIViewController *)currentViewController
-{
-  return [_kernelUtilService currentViewController];
-}
-
-- (nullable NSDictionary *)launchOptions
-{
-  return [_kernelUtilService launchOptions];
 }
 
 @end

@@ -115,6 +115,7 @@ struct AppleMapsViewiOS17: View, AppleMapsViewProtocol {
       .onMapCameraChange(frequency: .onEnd) { context in
         let cameraPosition = context.region.center
         let longitudeDelta = context.region.span.longitudeDelta
+        let latitudeDelta = context.region.span.latitudeDelta
         let zoomLevel = log2(360 / longitudeDelta)
 
         props.onCameraMove([
@@ -122,14 +123,14 @@ struct AppleMapsViewiOS17: View, AppleMapsViewProtocol {
             "latitude": cameraPosition.latitude,
             "longitude": cameraPosition.longitude
           ],
+          "longitudeDelta": longitudeDelta,
+          "latitudeDelta": latitudeDelta,
           "zoom": zoomLevel,
           "tilt": context.camera.pitch,
           "bearing": context.camera.heading
         ])
       }
-      .mapStyle(properties.mapType.toMapStyle(
-        showsTraffic: properties.isTrafficEnabled
-      ))
+      .mapStyle(properties.mapType.toMapStyle(properties))
       .lookAroundViewer(
         isPresented: $state.lookAroundPresented,
         initialScene: state.lookAroundScene,
@@ -142,7 +143,10 @@ struct AppleMapsViewiOS17: View, AppleMapsViewProtocol {
         }
       )
       .onAppear {
-        state.mapCameraPosition = convertToMapCamera(position: props.cameraPosition)
+        if !state.hasInitializedCamera {
+          state.mapCameraPosition = convertToMapCamera(position: props.cameraPosition)
+          state.hasInitializedCamera = true
+        }
       }
     }
   }

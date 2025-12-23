@@ -8,6 +8,52 @@
 
 ### 🐛 Bug fixes
 
+- use WGS 84 as reference for altitude on iOS ([#41318](https://github.com/expo/expo/pull/41318) by [@vonovak](https://github.com/vonovak))
+- fix position of the `scope` field in a permissions request result ([#41328](https://github.com/expo/expo/pull/41328) by [@vonovak](https://github.com/vonovak))
+- [Web] Stop using legacy event emitter. ([#41680](https://github.com/expo/expo/pull/41680) by [@alanjhughes](https://github.com/alanjhughes))
+
+### 💡 Others
+
+- [Android] Removed unused `androidx.annotation:annotation` dependency. ([#39758](https://github.com/expo/expo/pull/39758) by [@lukmccall](https://github.com/lukmccall))
+
+## 19.0.8 - 2025-12-05
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.7 — 2025-09-11
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.6 — 2025-09-02
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.5 — 2025-08-31
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.4 — 2025-08-27
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.3 — 2025-08-25
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.2 — 2025-08-16
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.1 — 2025-08-15
+
+_This version does not introduce any user-facing changes._
+
+## 19.0.0 — 2025-08-13
+
+_This version does not introduce any user-facing changes._
+
+## 18.1.6 - 2025-07-01
+
 ### 💡 Others
 
 - Remove "Please" from warnings and errors ([#36862](https://github.com/expo/expo/pull/36862) by [@brentvatne](https://github.com/brentvatne))

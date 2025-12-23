@@ -2,15 +2,15 @@ package expo.modules.notifications.notifications.handling
 
 import android.os.Handler
 import android.os.HandlerThread
-import expo.modules.core.ModuleRegistry
 import expo.modules.kotlin.Promise
 import expo.modules.kotlin.modules.Module
 import expo.modules.kotlin.modules.ModuleDefinition
 import expo.modules.notifications.NotificationWasAlreadyHandledException
+import expo.modules.notifications.notifications.NotificationManager
 import expo.modules.notifications.notifications.interfaces.NotificationListener
-import expo.modules.notifications.notifications.interfaces.NotificationManager
 import expo.modules.notifications.notifications.model.Notification
 import expo.modules.notifications.notifications.model.NotificationBehaviorRecord
+import expo.modules.notifications.notifications.model.RemoteNotificationContent
 
 /**
  * [NotificationListener] responsible for managing app's reaction to incoming
@@ -22,9 +22,6 @@ import expo.modules.notifications.notifications.model.NotificationBehaviorRecord
  * for all of them and a proxy through which app responds with the behavior.
  */
 open class NotificationsHandler : Module(), NotificationListener {
-  private lateinit var notificationManager: NotificationManager
-  private lateinit var moduleRegistry: ModuleRegistry
-
   /**
    * [HandlerThread] which is the host to the notifications handler.
    */
@@ -46,19 +43,16 @@ open class NotificationsHandler : Module(), NotificationListener {
     )
 
     OnCreate {
-      moduleRegistry = appContext.legacyModuleRegistry
-
-      // Register the module as a listener in NotificationManager singleton module.
+      // Register the module as a listener in NotificationManager singleton.
       // Deregistration happens in onDestroy callback.
-      notificationManager = requireNotNull(moduleRegistry.getSingletonModule("NotificationManager", NotificationManager::class.java))
-      notificationManager.addListener(this@NotificationsHandler)
+      NotificationManager.addListener(this@NotificationsHandler)
       notificationsHandlerThread = HandlerThread("NotificationsHandlerThread - " + this.javaClass.toString())
       notificationsHandlerThread.start()
       handler = Handler(notificationsHandlerThread.looper)
     }
 
     OnDestroy {
-      notificationManager.removeListener(this@NotificationsHandler)
+      NotificationManager.removeListener(this@NotificationsHandler)
 
       tasksMap.values.forEach(SingleNotificationHandlerTask::stop)
 
@@ -100,6 +94,13 @@ open class NotificationsHandler : Module(), NotificationListener {
    */
   override fun onNotificationReceived(notification: Notification) {
     val context = appContext.reactContext ?: return
+    val content = notification.notificationRequest.content
+    if (content is RemoteNotificationContent && content.isDataOnly) {
+      // We do not notify JS about data-only notifications, for consistency with iOS.
+      // onDidReceiveNotification is triggered
+      // and JS task will run if set up
+      return
+    }
     val task = SingleNotificationHandlerTask(
       context,
       appContext.eventEmitter(this),
